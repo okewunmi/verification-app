@@ -282,7 +282,7 @@ export default function AdminDashboard() {
     } else if (hour >= 17 && hour < 21) {
       setGreeting('Good Evening');
     } else {
-      setGreeting('Good Night');
+      setGreeting('Good Day');
     }
   }, [currentTime]);
 
