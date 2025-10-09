@@ -1,7 +1,9 @@
 "use client"
 import { useState } from 'react';
-
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 export default function BiometricCaptureInterface() {
+  const router = useRouter();
   const [selectedStudent, setSelectedStudent] = useState('');
   const [captureStep, setCaptureStep] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -113,7 +115,9 @@ export default function BiometricCaptureInterface() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4">
+          <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
+          onClick={() => router.push("/Admin")}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>

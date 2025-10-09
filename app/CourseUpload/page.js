@@ -14,8 +14,10 @@ import {
   AlertCircle,
   ArrowLeft
 } from 'lucide-react';
-
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 export default function CourseUploadPage() {
+  const router = useRouter();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedSemester, setSelectedSemester] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
@@ -135,7 +137,9 @@ export default function CourseUploadPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4">
+          <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
+          onClick={() => router.push("/Admin")}
+          >
             <ArrowLeft className="w-5 h-5" />
             <span>Back to Dashboard</span>
           </button>
