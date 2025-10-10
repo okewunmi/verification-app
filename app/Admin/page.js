@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
+import { logOut } from '@/lib/appwrite';
 export default function AdminDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [greeting, setGreeting] = useState('');
@@ -181,6 +181,14 @@ const router = useRouter();
     router.push(path); 
   };
 
+const handleSignOut =()=>{
+try {
+  await logOut()
+} catch (error) {
+  throw new Error(error.message);
+  
+}
+}
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex">
       {/* Sidebar */}
@@ -229,7 +237,8 @@ const router = useRouter();
         {/* Sidebar Footer */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
           <button 
-            onClick={() => console.log('Logout clicked')}
+            // onClick={() => console.log('Logout clicked')}
+            onClick={handleSignOut}
             className="w-full flex items-center justify-center lg:justify-start space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-all"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

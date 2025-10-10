@@ -88,8 +88,8 @@ export default function LoginForm() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className="block w-full pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
-                    placeholder="Enter your username"
+                    className="block w-full pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-black"
+                    placeholder="Enter your email"
                   />
                 </div>
               </div>
@@ -114,7 +114,7 @@ export default function LoginForm() {
                         handleSubmit(e);
                       }
                     }}
-                    className="block w-full pl-8 sm:pl-10 pr-9 sm:pr-10 py-2 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                    className="block w-full pl-8 sm:pl-10 pr-9 sm:pr-10 py-2 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-black"
                     placeholder="Enter your password"
                   />
                   <button
