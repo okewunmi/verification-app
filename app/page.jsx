@@ -2,13 +2,15 @@
 import { useState } from 'react';
 import { MdLogin, MdPerson, MdLock, MdVisibility, MdVisibilityOff } from 'react-icons/md';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
-
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 // Import login function from lib/appwrite
 import { login } from '@/lib/appwrite';
 
 export default function LoginForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -31,10 +33,11 @@ export default function LoginForm() {
 
     try {
       // Call the login function from lib/appwrite
-      const response = await login(formData.username, formData.password);
+      const response = await login(formData.email, formData.password);
       setSuccess(true);
       console.log('Login successful:', response);
       // Redirect or handle successful login
+       router.push('/Admin'); 
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -72,7 +75,7 @@ export default function LoginForm() {
             <div className="space-y-4">
               <div>
                 <label htmlFor="username" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
-                  Username
+                  Email
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-2.5 sm:pl-3 flex items-center pointer-events-none text-gray-400">
@@ -83,7 +86,7 @@ export default function LoginForm() {
                     name="username"
                     type="text"
                     required
-                    value={formData.username}
+                    value={formData.email}
                     onChange={handleChange}
                     className="block w-full pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
                     placeholder="Enter your username"
