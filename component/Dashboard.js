@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { logOut, getCurrentUser } from '@/lib/appwrite';
+import { logOut } from '@/lib/appwrite';
 export default function AdminDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [greeting, setGreeting] = useState('');
@@ -10,8 +10,6 @@ export default function AdminDashboard() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [coursesExpanded, setCoursesExpanded] = useState(false);
 const [isLoggingOut, setIsLoggingOut] = useState(false);
-const [loading, setLoading] = useState(true);
-
 
 const router = useRouter();
 
@@ -185,89 +183,19 @@ const router = useRouter();
   };
 
 // Handle sign out function
-  // const handleSignOut = async () => {
-  //   try {
-  //     setIsLoggingOut(true);
-  //     await logOut();
-  //     // Redirect to login page after successful logout
-  //     router.push('/'); // or '/' depending on your route
-  //   } catch (error) {
-  //     console.error('Logout error:', error);
-  //     alert('Failed to logout. Please try again.');
-  //   } finally {
-  //     setIsLoggingOut(false);
-  //   }
-  // };
-
-
-// Check authentication on component mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = await getCurrentUser();
-        if (!user) {
-          router.push('/');
-        }
-      } catch (error) {
-        router.push('/');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, [router]);
-
-  
-
-  // Enhanced handle sign out with auth check
   const handleSignOut = async () => {
-    if (isLoggingOut) return; // Prevent multiple clicks
-
     try {
       setIsLoggingOut(true);
-      
-      // First, check if user is authenticated
-      const user = await getCurrentUser();
-      
-      if (!user) {
-        // User is not logged in, redirect to home
-        router.push('/');
-        return;
-      }
-
-      // User is authenticated, proceed with logout
       await logOut();
-      
-      // Successful logout, redirect to home
-      router.push('/');
-      
+      // Redirect to login page after successful logout
+      router.push('/'); // or '/' depending on your route
     } catch (error) {
       console.error('Logout error:', error);
-      
-      // Even if logout fails, redirect to home (session might be expired)
-      router.push('/');
-      
-      // Optionally show error message
-      // alert('Logout error: ' + error.message);
+      alert('Failed to logout. Please try again.');
     } finally {
       setIsLoggingOut(false);
     }
   };
-
-  // Show loading screen while checking auth
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex">
       {/* Sidebar */}
@@ -314,7 +242,7 @@ const router = useRouter();
         </nav>
 
         {/* Sidebar Footer */}
-        {/*  <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
+        // <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
         //   <button 
         //     // onClick={() => console.log('Logout clicked')}
         //     onClick={handleSignOut}
@@ -325,7 +253,7 @@ const router = useRouter();
         //     </svg>
         //     <span className="font-medium hidden lg:block">Logout</span>
         //   </button>
-         </div> */}
+        // </div>
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
           <button 
             onClick={handleSignOut}
@@ -498,15 +426,3 @@ const router = useRouter();
     </div>
   );
 }
-
-
-// import ProtectedRoute from '@Protected';
-// import AdminDashboard from '@component/DashboardashBoard';
-
-// export default function AdminPage() {
-//   return (
-//     <ProtectedRoute>
-//       <AdminDashboard />
-//     </ProtectedRoute>
-//   );
-// }
