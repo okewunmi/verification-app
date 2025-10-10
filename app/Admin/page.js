@@ -181,9 +181,9 @@ const router = useRouter();
     router.push(path); 
   };
 
-const handleSignOut =()=>{
+const handleSignOut =async()=>{
 try {
-  await logOut()
+  await logOut();
 } catch (error) {
   throw new Error(error.message);
   
