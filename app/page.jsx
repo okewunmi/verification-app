@@ -82,8 +82,8 @@ export default function LoginForm() {
                     <MdPerson className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
                   <input
-                    id="username"
-                    name="username"
+                    id="email"
+                    name="email"
                     type="text"
                     required
                     value={formData.email}
