@@ -498,15 +498,3 @@ const router = useRouter();
     </div>
   );
 }
-
-
-// import ProtectedRoute from '@Protected';
-// import AdminDashboard from '@component/DashboardashBoard';
-
-// export default function AdminPage() {
-//   return (
-//     <ProtectedRoute>
-//       <AdminDashboard />
-//     </ProtectedRoute>
-//   );
-// }
