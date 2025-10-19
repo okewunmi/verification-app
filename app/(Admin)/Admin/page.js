@@ -64,7 +64,7 @@ const router = useRouter();
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       ),
-      link: '/students'
+      link: 'Admin/students'
     },
     {
       id: 'courses',
@@ -74,7 +74,7 @@ const router = useRouter();
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
       ),
-      link: '/CourseUpload'
+      link: 'Admin/CourseUpload'
     },
     {
       id: 'verify',
@@ -84,7 +84,7 @@ const router = useRouter();
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
         </svg>
       ),
-      link: '/Verify'
+      link: 'Admin/Verify'
     },
     {
       id: 'biometric',
@@ -94,7 +94,7 @@ const router = useRouter();
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
         </svg>
       ),
-      link: '/BCI'
+      link: 'Admin/BCI'
     },
     {
       id: 'attendance',
@@ -201,22 +201,22 @@ const router = useRouter();
 
 
 // Check authentication on component mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = await getCurrentUser();
-        if (!user) {
-          router.push('/');
-        }
-      } catch (error) {
-        router.push('/');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // useEffect(() => {
+  //   const checkAuth = async () => {
+  //     try {
+  //       const user = await getCurrentUser();
+  //       if (!user) {
+  //         router.push('/Admin/admin-login');
+  //       }
+  //     } catch (error) {
+  //       router.push('/Admin/admin-login');
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    checkAuth();
-  }, [router]);
+  //   checkAuth();
+  // }, [router]);
 
   
 
@@ -232,7 +232,7 @@ const router = useRouter();
       
       if (!user) {
         // User is not logged in, redirect to home
-        router.push('/');
+        router.push('/Admin/admin-login');
         return;
       }
 
@@ -240,13 +240,13 @@ const router = useRouter();
       await logOut();
       
       // Successful logout, redirect to home
-      router.push('/');
+      router.push('/Admin/admin-login');
       
     } catch (error) {
       console.error('Logout error:', error);
       
       // Even if logout fails, redirect to home (session might be expired)
-      router.push('/');
+      router.push('/Admin/admin-login');
       
       // Optionally show error message
       // alert('Logout error: ' + error.message);
@@ -498,3 +498,5 @@ const router = useRouter();
     </div>
   );
 }
+
+
