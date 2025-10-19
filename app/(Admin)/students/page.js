@@ -7,11 +7,11 @@ import {
   deleteStudent,
   saveFingerprints,
   getStudentStats,
-  generateDepartmentCode
+  generateDepartmentCode,
+  getProfilePictureUrl
 } from '@/lib/appwrite';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
 export default function StudentManagement() {
     const router = useRouter();
   const [students, setStudents] = useState([]);
@@ -45,7 +45,7 @@ export default function StudentManagement() {
   const [formData, setFormData] = useState({
     surname: '',
     firstName: '',
-    lastName: '',
+    middleName: '',
     age: '',
     phoneNumber: '',
     email: '',
@@ -120,7 +120,7 @@ export default function StudentManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.surname || !formData.firstName || !formData.lastName || 
+    if (!formData.surname || !formData.firstName || !formData.middleName || 
         !formData.email || !formData.course || !formData.age || 
         !formData.phoneNumber || !formData.department || !formData.level) {
       showNotification('Please fill in all required fields', 'error');
@@ -136,7 +136,7 @@ export default function StudentManagement() {
           {
             surname: formData.surname,
             firstName: formData.firstName,
-            lastName: formData.lastName,
+            middleName: formData.middleName,
             age: parseInt(formData.age),
             phoneNumber: formData.phoneNumber,
             email: formData.email,
@@ -183,7 +183,7 @@ export default function StudentManagement() {
     setFormData({
       surname: student.surname,
       firstName: student.firstName,
-      lastName: student.lastName,
+      middleName: student.middleName,
       age: student.age.toString(),
       phoneNumber: student.phoneNumber,
       email: student.email,
@@ -312,7 +312,7 @@ export default function StudentManagement() {
     setFormData({
       surname: '',
       firstName: '',
-      lastName: '',
+      middleName: '',
       age: '',
       phoneNumber: '',
       email: '',
@@ -526,14 +526,25 @@ export default function StudentManagement() {
                     <tr key={student.$id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
-                          <img
+                          {/* <img
                             src={student.profilePictureUrl || 'https://via.placeholder.com/40'}
                             alt={student.firstName}
                             className="w-10 h-10 rounded-full object-cover"
-                          />
+                          /> */}
+                          <img
+  src={student.profilePictureUrl && student.profilePictureUrl.trim() !== '' 
+    ? student.profilePictureUrl 
+    : 'https://via.placeholder.com/40'}
+  alt={student.firstName}
+  className="w-10 h-10 rounded-full object-cover"
+  onError={(e) => {
+    console.error('Failed to load image:', student.profilePictureUrl);
+    e.target.src = 'https://via.placeholder.com/40';
+  }}
+/>
                           <div>
                             <p className="font-semibold text-gray-800">{student.firstName} {student.surname}</p>
-                            <p className="text-sm text-gray-500">{student.lastName}</p>
+                            <p className="text-sm text-gray-500">{student.middleName}</p>
                           </div>
                         </div>
                       </td>
@@ -665,7 +676,7 @@ export default function StudentManagement() {
                       value={formData.surname}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     />
                   </div>
 
@@ -679,21 +690,21 @@ export default function StudentManagement() {
                       value={formData.firstName}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Last Name *
+                      Middle Name *
                     </label>
                     <input
                       type="text"
-                      name="lastName"
-                      value={formData.lastName}
+                      name="middleName"
+                      value={formData.middleName}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     />
                   </div>
 
@@ -709,7 +720,7 @@ export default function StudentManagement() {
                       required
                       min="15"
                       max="100"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     />
                   </div>
 
@@ -724,7 +735,7 @@ export default function StudentManagement() {
                       onChange={handleInputChange}
                       required
                       placeholder="+234 xxx xxx xxxx"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     />
                   </div>
 
@@ -738,7 +749,7 @@ export default function StudentManagement() {
                       value={formData.email}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     />
                   </div>
 
@@ -751,7 +762,7 @@ export default function StudentManagement() {
                       value={formData.department}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     >
                       <option value="">Select Department</option>
                       {departments.map(dept => (
@@ -771,7 +782,7 @@ export default function StudentManagement() {
                       onChange={handleInputChange}
                       required
                       placeholder="e.g., Computer Science"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     />
                     {formData.course && (
                       <p className="text-xs text-gray-500 mt-1">
@@ -789,7 +800,7 @@ export default function StudentManagement() {
                       value={formData.level}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 "
                     >
                       <option value="">Select Level</option>
                       {levels.map(level => (
