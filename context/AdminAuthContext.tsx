@@ -1,13 +1,35 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getCurrentUser, logOut } from '@/lib/appwrite';
 import { useRouter } from 'next/navigation';
 
-const AdminAuthContext = createContext({});
+// Define the shape of your admin/user object
+interface Admin {
+  $id: string;
+  email: string;
+  name?: string;
+  // Add other properties from your Appwrite user object
+}
 
-export const AdminAuthProvider = ({ children }) => {
-  const [admin, setAdmin] = useState(null);
+// Define the context type
+interface AdminAuthContextType {
+  admin: Admin | null;
+  loading: boolean;
+  checkAuth: () => Promise<void>;
+  logout: () => Promise<void>;
+  isAuthenticated: boolean;
+}
+
+// Create context with proper typing
+const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined);
+
+interface AdminAuthProviderProps {
+  children: ReactNode;
+}
+
+export const AdminAuthProvider = ({ children }: AdminAuthProviderProps) => {
+  const [admin, setAdmin] = useState<Admin | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -21,7 +43,7 @@ export const AdminAuthProvider = ({ children }) => {
       
       if (result) {
         // User is logged in, set admin state
-        setAdmin(result);
+        setAdmin(result as Admin);
       } else {
         // No user found, redirect to login
         setAdmin(null);
@@ -46,7 +68,7 @@ export const AdminAuthProvider = ({ children }) => {
     }
   };
 
-  const value = {
+  const value: AdminAuthContextType = {
     admin,
     loading,
     checkAuth,
@@ -61,7 +83,7 @@ export const AdminAuthProvider = ({ children }) => {
   );
 };
 
-export const useAdminAuth = () => {
+export const useAdminAuth = (): AdminAuthContextType => {
   const context = useContext(AdminAuthContext);
   if (!context) {
     throw new Error('useAdminAuth must be used within AdminAuthProvider');
