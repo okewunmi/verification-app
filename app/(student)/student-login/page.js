@@ -189,7 +189,7 @@ export default function StudentLogin() {
         localStorage.setItem('authId', result.authId);
         
         // Redirect to student dashboard
-        router.push('/student/dashboard');
+        router.push('/student');
       } else {
         setError(result.error);
       }

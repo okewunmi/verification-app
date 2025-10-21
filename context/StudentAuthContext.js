@@ -18,14 +18,16 @@ export const StudentAuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const result = await getCurrentStudent();
-      if (result.success) {
-        setStudent(result.student);
+      if (result) {
+        setStudent(result);
       } else {
         setStudent(null);
+ router.push('/student/student-login');
       }
     } catch (error) {
       console.error('Auth check error:', error);
       setStudent(null);
+ router.push('/student/student-login');
     } finally {
       setLoading(false);
     }
@@ -35,7 +37,7 @@ export const StudentAuthProvider = ({ children }) => {
     try {
       await studentLogout();
       setStudent(null);
-      router.push('/student-login');
+      router.push('/student/student-login');
     } catch (error) {
       console.error('Logout error:', error);
     }
