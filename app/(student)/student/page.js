@@ -184,10 +184,10 @@ export default function StudentDashboard() {
                 <h2 className="text-2xl sm:text-3xl font-bold mb-1">{greeting}, {studentInfo.name.split(' ')[0]}! 👋</h2>
                 <p className="text-indigo-100 text-sm sm:text-base mb-2">{studentInfo.id} • {studentInfo.department}</p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm text-black">
                     {studentInfo.level} Level
                   </span>
-                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm text-black">
                     {studentInfo.semester}
                   </span>
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">

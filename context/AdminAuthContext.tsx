@@ -47,12 +47,12 @@ export const AdminAuthProvider = ({ children }: AdminAuthProviderProps) => {
       } else {
         // No user found, redirect to login
         setAdmin(null);
-        router.push('/Admin/admin-login');
+        router.push('/admin-login');
       }
     } catch (error) {
       console.error('Auth check error:', error);
       setAdmin(null);
-      router.push('/Admin/admin-login');
+      router.push('/admin-login');
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export const AdminAuthProvider = ({ children }: AdminAuthProviderProps) => {
     try {
       await logOut();
       setAdmin(null);
-      router.push('/Admin/admin-login');
+      router.push('/admin-login');
     } catch (error) {
       console.error('Logout error:', error);
     }

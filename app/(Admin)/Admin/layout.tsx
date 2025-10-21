@@ -57,7 +57,7 @@ function AdminLayoutContent({ children }: AdminLayoutContentProps) {
 
   useEffect(() => {
     if (!loading && !admin) {
-      router.push('/Admin/admin-login');
+      router.push('/admin-login');
     }
   }, [admin, loading, router]);
 
