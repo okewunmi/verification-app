@@ -371,12 +371,11 @@ export default function StudentDashboard() {
                         </div>
                         <label className="flex items-center cursor-pointer">
                           <input
-                            type="checkbox"
-                            checked={isSelected || isRegistered}
-                            onChange={() => !isRegistered && handleCourseSelection(course)}
-                            disabled={isRegistered}
-                            className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
+                          type="checkbox"
+                          checked={Boolean(isSelected) || Boolean(isRegistered)}
+                          onChange={() => !isRegistered && handleCourseSelection(course)}
+                          disabled={isRegistered}
+                        />
                         </label>
                       </div>
                       {isRegistered && (
