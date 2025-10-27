@@ -383,7 +383,7 @@ const handleRegisterCourses = async () => {
                 <h2 className="text-2xl sm:text-3xl font-bold mb-1">
                   {greeting}, {studentInfo.firstName}! 👋
                 </h2>
-                <p className="text-black text-sm sm:text-base mb-2">
+                <p className=" text-sm sm:text-base mb-2">
                   {studentInfo.matricNumber} • {studentInfo.department}
                 </p>
                 <div className="flex flex-wrap gap-2">
