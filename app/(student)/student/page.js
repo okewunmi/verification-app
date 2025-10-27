@@ -388,10 +388,10 @@ export default function StudentDashboard() {
                   {studentInfo.matricNumber} • {studentInfo.department}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm text-indigo-100">
                     {studentInfo.level} Level
                   </span>
-                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm text-indigo-100">
                     2024/2025 First Semester
                   </span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
