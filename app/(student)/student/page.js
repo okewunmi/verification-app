@@ -184,7 +184,8 @@ export default function StudentDashboard() {
         studentInfo.$id,
         studentInfo.matricNumber,
         selectedCourses,
-        '2024/2025 First Semester'
+        '2024/2025',
+        'First' 
       );
 
       if (result.success) {
