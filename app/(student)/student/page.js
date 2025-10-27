@@ -172,7 +172,7 @@ export default function StudentDashboard() {
   };
 
   
- const handleRegisterCourses = async () => {
+const handleRegisterCourses = async () => {
     if (selectedCourses.length === 0) {
       showNotification('Please select at least one course', 'error');
       return;
@@ -180,6 +180,8 @@ export default function StudentDashboard() {
 
     try {
       setRegistering(true);
+      
+      console.log('Registering courses:', selectedCourses.map(c => c.courseCode));
       
       // Register all selected courses - let backend handle duplicate checks
       const result = await registerStudentCourses(
@@ -215,6 +217,9 @@ export default function StudentDashboard() {
         } else if (skipCount > 0 && errorCount === 0) {
           showNotification('All selected courses are already registered', 'info');
           setSelectedCourses([]);
+          // Still refresh to show updated data
+          await fetchRegisteredCourses(studentInfo.matricNumber);
+          await fetchRegistrationStats(studentInfo.matricNumber);
         } else {
           showNotification(result.message || 'Registration failed', 'error');
         }

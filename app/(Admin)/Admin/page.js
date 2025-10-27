@@ -449,7 +449,7 @@ const stats = [
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                 <div>
                   <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">{greeting}, Admin! 👋</h2>
-                  <p className="text-indigo-100 text-sm sm:text-base">5 Fingerprint Based Exam Hall Authentication System</p>
+                  <p className="text-indigo-100 text-sm sm:text-base">Biometrics Exam Authentication System </p>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2 text-indigo-100">
