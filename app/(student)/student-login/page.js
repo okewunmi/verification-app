@@ -13,32 +13,36 @@ export default function StudentLogin() {
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      const result = await studentLogin(
-        formData.matricNumber,
-        formData.password
-      );
+  try {
+    // Trim inputs before sending
+    const result = await studentLogin(
+      formData.matricNumber.trim(),
+      formData.password.trim()
+    );
 
-      if (result.success) {
-        // Store student data in session/localStorage
-        localStorage.setItem('studentData', JSON.stringify(result.user));
-        localStorage.setItem('authId', result.authId);
-        
-        // Redirect to student dashboard
-        router.push('/student');
-      } else {
-        setError(result.error);
-      }
-    } catch (err) {
-      setError('Login failed. Please try again.');
-    } finally {
-      setLoading(false);
+    console.log('Login result:', result);
+
+    if (result.success) {
+      // Store student data in session/localStorage
+      localStorage.setItem('studentData', JSON.stringify(result.user));
+      localStorage.setItem('authId', result.authId);
+      
+      // Redirect to student dashboard
+      router.push('/student');
+    } else {
+      setError(result.error);
     }
-  };
+  } catch (err) {
+    console.error('Login error:', err);
+    setError('Login failed. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50 p-4">

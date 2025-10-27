@@ -171,6 +171,7 @@ export default function StudentDashboard() {
     }
   };
 
+  
  const handleRegisterCourses = async () => {
     if (selectedCourses.length === 0) {
       showNotification('Please select at least one course', 'error');
@@ -180,55 +181,46 @@ export default function StudentDashboard() {
     try {
       setRegistering(true);
       
-      // Filter out already registered courses before sending
-      const coursesToRegister = selectedCourses.filter(course => {
-        return !isCourseRegistered(course.courseCode);
-      });
-
-      if (coursesToRegister.length === 0) {
-        showNotification('All selected courses are already registered', 'error');
-        setRegistering(false);
-        return;
-      }
-
-      if (coursesToRegister.length !== selectedCourses.length) {
-        showNotification(
-          `${selectedCourses.length - coursesToRegister.length} course(s) already registered. Registering remaining courses...`, 
-          'info'
-        );
-      }
-      
+      // Register all selected courses - let backend handle duplicate checks
       const result = await registerStudentCourses(
         studentInfo.$id,
         studentInfo.matricNumber,
-        coursesToRegister,
+        selectedCourses,
         '2024/2025',
         'First'
       );
 
-      if (result.success) {
-        showNotification(result.message, 'success');
-        setSelectedCourses([]);
-        
-        // Refresh registered courses and stats
-        await fetchRegisteredCourses(studentInfo.matricNumber);
-        await fetchRegistrationStats(studentInfo.matricNumber);
-        
-        setActiveTab('registered');
-      } else {
-        // Show partial success if some courses registered
-        if (result.data && result.data.length > 0) {
-          showNotification(
-            `${result.data.length} course(s) registered. ${result.errors.length} failed.`,
-            'success'
-          );
+      console.log('Registration result:', result);
+
+      // Handle response
+      if (result.success || (result.data && result.data.length > 0)) {
+        // Success or partial success
+        const successCount = result.data ? result.data.length : 0;
+        const skipCount = result.skipped ? result.skipped.length : 0;
+        const errorCount = result.errors ? result.errors.length : 0;
+
+        if (successCount > 0) {
+          let message = `${successCount} course(s) registered successfully`;
+          if (skipCount > 0) message += `, ${skipCount} already registered`;
+          if (errorCount > 0) message += `, ${errorCount} failed`;
+          
+          showNotification(message, 'success');
           setSelectedCourses([]);
+          
+          // Refresh registered courses and stats
           await fetchRegisteredCourses(studentInfo.matricNumber);
           await fetchRegistrationStats(studentInfo.matricNumber);
+          
+          setActiveTab('registered');
+        } else if (skipCount > 0 && errorCount === 0) {
+          showNotification('All selected courses are already registered', 'info');
+          setSelectedCourses([]);
         } else {
-          const errorMsg = result.error || result.message || 'Registration failed';
-          showNotification(errorMsg, 'error');
+          showNotification(result.message || 'Registration failed', 'error');
         }
+      } else {
+        const errorMsg = result.error || result.message || 'Registration failed';
+        showNotification(errorMsg, 'error');
         console.error('Registration error details:', result);
       }
     } catch (error) {
@@ -238,6 +230,8 @@ export default function StudentDashboard() {
       setRegistering(false);
     }
   };
+
+
 
   const handleDropCourse = async (registrationId) => {
     if (!window.confirm('Are you sure you want to drop this course?')) {
