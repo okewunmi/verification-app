@@ -171,7 +171,7 @@ export default function StudentDashboard() {
     }
   };
 
-  const handleRegisterCourses = async () => {
+ const handleRegisterCourses = async () => {
     if (selectedCourses.length === 0) {
       showNotification('Please select at least one course', 'error');
       return;
@@ -180,12 +180,30 @@ export default function StudentDashboard() {
     try {
       setRegistering(true);
       
+      // Filter out already registered courses before sending
+      const coursesToRegister = selectedCourses.filter(course => {
+        return !isCourseRegistered(course.courseCode);
+      });
+
+      if (coursesToRegister.length === 0) {
+        showNotification('All selected courses are already registered', 'error');
+        setRegistering(false);
+        return;
+      }
+
+      if (coursesToRegister.length !== selectedCourses.length) {
+        showNotification(
+          `${selectedCourses.length - coursesToRegister.length} course(s) already registered. Registering remaining courses...`, 
+          'info'
+        );
+      }
+      
       const result = await registerStudentCourses(
         studentInfo.$id,
         studentInfo.matricNumber,
-        selectedCourses,
+        coursesToRegister,
         '2024/2025',
-        'First' 
+        'First'
       );
 
       if (result.success) {
@@ -198,11 +216,24 @@ export default function StudentDashboard() {
         
         setActiveTab('registered');
       } else {
-        showNotification(result.error || 'Registration failed', 'error');
+        // Show partial success if some courses registered
+        if (result.data && result.data.length > 0) {
+          showNotification(
+            `${result.data.length} course(s) registered. ${result.errors.length} failed.`,
+            'success'
+          );
+          setSelectedCourses([]);
+          await fetchRegisteredCourses(studentInfo.matricNumber);
+          await fetchRegistrationStats(studentInfo.matricNumber);
+        } else {
+          const errorMsg = result.error || result.message || 'Registration failed';
+          showNotification(errorMsg, 'error');
+        }
+        console.error('Registration error details:', result);
       }
     } catch (error) {
       console.error('Error registering courses:', error);
-      showNotification('Registration failed. Please try again.', 'error');
+      showNotification(`Registration failed: ${error.message || 'Unknown error'}`, 'error');
     } finally {
       setRegistering(false);
     }
