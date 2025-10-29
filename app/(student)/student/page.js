@@ -430,7 +430,7 @@ return (
       </div>
     </div>
   </div>
-);
+);}
 
 // Main Student Dashboard Component
 export default function StudentDashboard() {
