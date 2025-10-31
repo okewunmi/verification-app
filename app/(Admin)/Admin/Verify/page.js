@@ -1,35 +1,205 @@
+
 // "use client"
-// import { useState } from 'react';
+// import { useState, useEffect, useRef } from 'react';
 // import { useRouter } from 'next/navigation';
-// import Link from 'next/link';
+// import { 
+//   getAllCourses, 
+//   verifyFaceRecognition, 
+//   verifyFingerprintScanner 
+// } from '@/lib/appwrite';
+
 // export default function ExamVerificationInterface() {
-// const router = useRouter();
+//   const router = useRouter();
+//   const videoRef = useRef(null);
+//   const canvasRef = useRef(null);
 
 //   const [verificationType, setVerificationType] = useState('');
 //   const [isScanning, setIsScanning] = useState(false);
 //   const [verificationResult, setVerificationResult] = useState(null);
 //   const [selectedExamSession, setSelectedExamSession] = useState('');
+//   const [examSessions, setExamSessions] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState(null);
+//   const [cameraActive, setCameraActive] = useState(false);
+//   const [stream, setStream] = useState(null);
 
-//   // Mock exam sessions - replace with Supabase data
-//   const examSessions = [
-//     { id: '1', name: 'CS301 - Database Systems', date: '2024-10-15', time: '09:00 AM' },
-//     { id: '2', name: 'CS401 - Software Engineering', date: '2024-10-15', time: '02:00 PM' },
-//     { id: '3', name: 'CS201 - Data Structures', date: '2024-10-16', time: '10:00 AM' }
-//   ];
+//   // Load exam sessions (courses) from Appwrite
+//   useEffect(() => {
+//     loadExamSessions();
+//   }, []);
 
-//   // Mock student data - replace with actual match result
-//   const mockStudent = {
-//     id: 'STU2024001',
-//     name: 'John Doe',
-//     department: 'Computer Science',
-//     level: '300',
-//     email: 'john.doe@university.edu',
-//     phone: '+234 801 234 5678',
-//     registeredCourses: ['CS301', 'CS302', 'CS303'],
-//     biometricStatus: 'Verified',
-//     photo: 'https://via.placeholder.com/150',
-//     admissionYear: '2021',
-//     semester: '2024/2025 First Semester'
+//   const loadExamSessions = async () => {
+//     try {
+//       setLoading(true);
+//       const result = await getAllCourses();
+      
+//       if (result.success) {
+//         // Transform courses into exam sessions format
+//         const sessions = result.data.map(course => ({
+//           id: course.$id,
+//           name: `${course.courseCode} - ${course.courseTitle}`,
+//           date: new Date().toISOString().split('T')[0], // Today's date
+//           time: '09:00 AM', // Default time
+//           level: course.level,
+//           department: course.department,
+//           semester: course.semester
+//         }));
+//         setExamSessions(sessions);
+//       } else {
+//         setError('Failed to load exam sessions');
+//       }
+//     } catch (err) {
+//       console.error('Error loading exam sessions:', err);
+//       setError('Failed to load exam sessions');
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // Start camera for face recognition
+//   const startCamera = async () => {
+//     try {
+//       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+//         video: { facingMode: 'user' } 
+//       });
+      
+//       if (videoRef.current) {
+//         videoRef.current.srcObject = mediaStream;
+//       }
+      
+//       setStream(mediaStream);
+//       setCameraActive(true);
+//     } catch (err) {
+//       console.error('Camera access error:', err);
+//       alert('Unable to access camera. Please check permissions.');
+//     }
+//   };
+
+//   // Stop camera
+//   const stopCamera = () => {
+//     if (stream) {
+//       stream.getTracks().forEach(track => track.stop());
+//       setStream(null);
+//     }
+//     setCameraActive(false);
+//   };
+
+//   // Capture face image from camera
+//   const captureFaceImage = () => {
+//     if (!videoRef.current || !canvasRef.current) return null;
+
+//     const canvas = canvasRef.current;
+//     const video = videoRef.current;
+    
+//     canvas.width = video.videoWidth;
+//     canvas.height = video.videoHeight;
+    
+//     const ctx = canvas.getContext('2d');
+//     ctx.drawImage(video, 0, 0);
+    
+//     return new Promise((resolve) => {
+//       canvas.toBlob((blob) => {
+//         resolve(new File([blob], 'captured-face.jpg', { type: 'image/jpeg' }));
+//       }, 'image/jpeg', 0.95);
+//     });
+//   };
+
+//   // Handle face recognition verification
+//   const handleFaceVerification = async () => {
+//     if (!cameraActive) {
+//       await startCamera();
+//       return;
+//     }
+
+//     setIsScanning(true);
+//     setVerificationResult(null);
+
+//     try {
+//       // Capture image from camera
+//       const capturedImage = await captureFaceImage();
+      
+//       if (!capturedImage) {
+//         throw new Error('Failed to capture image');
+//       }
+
+//       // Verify face using Appwrite function
+//       const result = await verifyFaceRecognition(capturedImage);
+
+//       if (result.matched) {
+//         setVerificationResult({
+//           success: true,
+//           student: result.student,
+//           confidence: result.confidence,
+//           matchTime: result.matchTime,
+//           verificationType: 'Face Recognition'
+//         });
+//         stopCamera();
+//       } else {
+//         setVerificationResult({
+//           success: false,
+//           message: result.message || 'No matching record found',
+//           confidence: 0
+//         });
+//       }
+//     } catch (err) {
+//       console.error('Face verification error:', err);
+//       setVerificationResult({
+//         success: false,
+//         message: err.message || 'Verification failed',
+//         confidence: 0
+//       });
+//     } finally {
+//       setIsScanning(false);
+//     }
+//   };
+
+//   // Handle fingerprint verification
+//   const handleFingerprintVerification = async () => {
+//     setIsScanning(true);
+//     setVerificationResult(null);
+
+//     try {
+//       // TODO: Replace with actual fingerprint scanner SDK call
+//       // Example: const template = await fingerprintScanner.capture();
+      
+//       // For now, we'll simulate waiting for fingerprint
+//       // You need to integrate your actual fingerprint scanner SDK here
+//       alert('Please place your finger on the scanner...');
+      
+//       // Simulated delay - replace with actual scanner wait
+//       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+//       // TODO: Get actual template from your scanner
+//       const capturedTemplate = 'FINGERPRINT_TEMPLATE_FROM_SCANNER';
+      
+//       // Verify fingerprint using Appwrite function
+//       const result = await verifyFingerprintScanner(capturedTemplate);
+
+//       if (result.matched) {
+//         setVerificationResult({
+//           success: true,
+//           student: result.student,
+//           confidence: result.confidence,
+//           matchTime: result.matchTime,
+//           verificationType: 'Fingerprint'
+//         });
+//       } else {
+//         setVerificationResult({
+//           success: false,
+//           message: result.message || 'No matching record found',
+//           confidence: 0
+//         });
+//       }
+//     } catch (err) {
+//       console.error('Fingerprint verification error:', err);
+//       setVerificationResult({
+//         success: false,
+//         message: err.message || 'Verification failed',
+//         confidence: 0
+//       });
+//     } finally {
+//       setIsScanning(false);
+//     }
 //   };
 
 //   const handleStartVerification = async () => {
@@ -38,54 +208,32 @@
 //       return;
 //     }
 
-//     setIsScanning(true);
-//     setVerificationResult(null);
-
-//     // Simulate scanning process
-//     setTimeout(() => {
-//       // Simulate API call to fingerprint/face recognition SDK
-//       // const result = await verifyBiometric(verificationType);
-      
-//       // Randomly simulate match/no match for demo
-//       const isMatch = Math.random() > 0.3; // 70% success rate for demo
-      
-//       if (isMatch) {
-//         // In production: fetch student data from Supabase where biometric matches
-//         setVerificationResult({
-//           success: true,
-//           student: mockStudent,
-//           confidence: 95.8,
-//           matchTime: new Date().toLocaleTimeString()
-//         });
-//       } else {
-//         setVerificationResult({
-//           success: false,
-//           message: 'No matching record found',
-//           confidence: 0
-//         });
-//       }
-      
-//       setIsScanning(false);
-//     }, 3000);
+//     if (verificationType === 'Face') {
+//       await handleFaceVerification();
+//     } else if (verificationType === 'Fingerprint') {
+//       await handleFingerprintVerification();
+//     }
 //   };
 
 //   const handleAllowEntry = async () => {
 //     if (!verificationResult?.student) return;
 
-//     // Save to student_verifications table in Supabase
+//     // TODO: Save verification to database
 //     const verificationData = {
-//       student_id: verificationResult.student.id,
-//       exam_session_id: selectedExamSession,
-//       verification_method: verificationType,
-//       verification_status: 'Success',
-//       confidence_score: verificationResult.confidence,
-//       verification_time: new Date().toISOString(),
-//       checked_in: true
+//       studentId: verificationResult.student.$id,
+//       matricNumber: verificationResult.student.matricNumber,
+//       examSessionId: selectedExamSession,
+//       verificationMethod: verificationResult.verificationType,
+//       verificationStatus: 'Success',
+//       confidenceScore: verificationResult.confidence,
+//       verificationTime: new Date().toISOString(),
+//       checkedIn: true
 //     };
 
-//     // await supabase.from('student_verifications').insert(verificationData);
+//     console.log('Verification data to save:', verificationData);
+//     // await databases.createDocument(...) - implement saving logic
     
-//     alert(`${verificationResult.student.name} has been checked in successfully!`);
+//     alert(`${verificationResult.student.firstName} ${verificationResult.student.surname} has been checked in successfully!`);
 //     resetVerification();
 //   };
 
@@ -93,15 +241,35 @@
 //     setVerificationResult(null);
 //     setVerificationType('');
 //     setIsScanning(false);
+//     stopCamera();
 //   };
+
+//   // Cleanup camera on unmount
+//   useEffect(() => {
+//     return () => {
+//       stopCamera();
+//     };
+//   }, []);
+
+//   if (loading) {
+//     return (
+//       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+//         <div className="text-center">
+//           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 mx-auto mb-4"></div>
+//           <p className="text-gray-600 font-semibold">Loading exam sessions...</p>
+//         </div>
+//       </div>
+//     );
+//   }
 
 //   return (
 //     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 sm:p-6 lg:p-8">
 //       <div className="max-w-6xl mx-auto">
 //         {/* Header */}
 //         <div className="mb-8">
-//           <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"  
-//           onClick={() => router.push("/Admin")}
+//           <button 
+//             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"  
+//             onClick={() => router.push("/Admin")}
 //           >
 //             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 //               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -116,6 +284,12 @@
 //           </h1>
 //           <p className="text-gray-600 mt-2">Verify student identity for exam entry</p>
 //         </div>
+
+//         {error && (
+//           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+//             {error}
+//           </div>
+//         )}
 
 //         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 //           {/* Left Panel - Verification Controls */}
@@ -135,7 +309,7 @@
 //                 <option value="">Choose exam session...</option>
 //                 {examSessions.map(session => (
 //                   <option key={session.id} value={session.id}>
-//                     {session.name} - {session.date} at {session.time}
+//                     {session.name} - {session.date}
 //                   </option>
 //                 ))}
 //               </select>
@@ -148,7 +322,10 @@
 //               </label>
 //               <div className="grid grid-cols-2 gap-4">
 //                 <button
-//                   onClick={() => setVerificationType('Fingerprint')}
+//                   onClick={() => {
+//                     setVerificationType('Fingerprint');
+//                     stopCamera();
+//                   }}
 //                   className={`p-6 border-2 rounded-xl transition-all ${
 //                     verificationType === 'Fingerprint'
 //                       ? 'border-indigo-600 bg-indigo-50'
@@ -181,6 +358,26 @@
 //               </div>
 //             </div>
 
+//             {/* Camera Preview for Face Recognition */}
+//             {verificationType === 'Face' && (
+//               <div className="mb-6">
+//                 <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
+//                   <video 
+//                     ref={videoRef}
+//                     autoPlay 
+//                     playsInline
+//                     className="w-full h-full object-cover"
+//                   />
+//                   {!cameraActive && (
+//                     <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
+//                       <p className="text-white text-sm">Camera will activate when you start verification</p>
+//                     </div>
+//                   )}
+//                 </div>
+//                 <canvas ref={canvasRef} className="hidden" />
+//               </div>
+//             )}
+
 //             {/* Start Verification Button */}
 //             <button
 //               onClick={handleStartVerification}
@@ -191,7 +388,7 @@
 //                   : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg'
 //               }`}
 //             >
-//               {isScanning ? 'Scanning...' : 'Start Verification'}
+//               {isScanning ? 'Scanning...' : cameraActive ? 'Capture & Verify' : 'Start Verification'}
 //             </button>
 
 //             {/* Scanning Animation */}
@@ -200,11 +397,11 @@
 //                 <div className="flex items-center justify-center space-x-3 mb-4">
 //                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
 //                   <span className="text-blue-600 font-semibold">
-//                     {verificationType === 'Fingerprint' ? 'Scanning fingerprint...' : 'Scanning face...'}
+//                     {verificationType === 'Fingerprint' ? 'Verifying fingerprint...' : 'Verifying face...'}
 //                   </span>
 //                 </div>
 //                 <p className="text-center text-sm text-gray-600">
-//                   Please {verificationType === 'Fingerprint' ? 'place your finger on the scanner' : 'look at the camera'}
+//                   Please wait while we match your biometric data
 //                 </p>
 //               </div>
 //             )}
@@ -265,20 +462,30 @@
 //                 <div className="space-y-4">
 //                   {/* Photo and Basic Info */}
 //                   <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl">
-//                     <img
-//                       src={verificationResult.student.photo}
-//                       alt="Student"
-//                       className="w-24 h-24 rounded-lg object-cover border-4 border-white shadow-lg"
-//                     />
+//                     {verificationResult.student.profilePictureUrl ? (
+//                       <img
+//                         src={verificationResult.student.profilePictureUrl}
+//                         alt="Student"
+//                         className="w-24 h-24 rounded-lg object-cover border-4 border-white shadow-lg"
+//                       />
+//                     ) : (
+//                       <div className="w-24 h-24 rounded-lg bg-gray-200 border-4 border-white shadow-lg flex items-center justify-center">
+//                         <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+//                         </svg>
+//                       </div>
+//                     )}
 //                     <div className="flex-1">
-//                       <h3 className="text-xl font-bold text-gray-800">{verificationResult.student.name}</h3>
-//                       <p className="text-indigo-600 font-semibold">{verificationResult.student.id}</p>
+//                       <h3 className="text-xl font-bold text-gray-800">
+//                         {verificationResult.student.firstName} {verificationResult.student.middleName} {verificationResult.student.surname}
+//                       </h3>
+//                       <p className="text-indigo-600 font-semibold">{verificationResult.student.matricNumber}</p>
 //                       <div className="mt-2 flex flex-wrap gap-2">
 //                         <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
 //                           {verificationResult.student.level} Level
 //                         </span>
 //                         <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-//                           {verificationResult.student.biometricStatus}
+//                           {verificationResult.verificationType}
 //                         </span>
 //                       </div>
 //                     </div>
@@ -291,20 +498,16 @@
 //                       <p className="font-semibold text-gray-800">{verificationResult.student.department}</p>
 //                     </div>
 //                     <div className="p-3 bg-gray-50 rounded-lg">
+//                       <p className="text-xs text-gray-500 mb-1">Course</p>
+//                       <p className="font-semibold text-gray-800">{verificationResult.student.course}</p>
+//                     </div>
+//                     <div className="p-3 bg-gray-50 rounded-lg">
 //                       <p className="text-xs text-gray-500 mb-1">Email</p>
 //                       <p className="font-semibold text-gray-800">{verificationResult.student.email}</p>
 //                     </div>
 //                     <div className="p-3 bg-gray-50 rounded-lg">
 //                       <p className="text-xs text-gray-500 mb-1">Phone Number</p>
-//                       <p className="font-semibold text-gray-800">{verificationResult.student.phone}</p>
-//                     </div>
-//                     <div className="p-3 bg-gray-50 rounded-lg">
-//                       <p className="text-xs text-gray-500 mb-1">Registered Courses</p>
-//                       <p className="font-semibold text-gray-800">{verificationResult.student.registeredCourses.join(', ')}</p>
-//                     </div>
-//                     <div className="p-3 bg-gray-50 rounded-lg">
-//                       <p className="text-xs text-gray-500 mb-1">Admission Year</p>
-//                       <p className="font-semibold text-gray-800">{verificationResult.student.admissionYear}</p>
+//                       <p className="font-semibold text-gray-800">{verificationResult.student.phoneNumber}</p>
 //                     </div>
 //                   </div>
 //                 </div>
@@ -332,14 +535,11 @@
 //     </div>
 //   );
 // }
+
+
 "use client"
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  getAllCourses, 
-  verifyFaceRecognition, 
-  verifyFingerprintScanner 
-} from '@/lib/appwrite';
 
 export default function ExamVerificationInterface() {
   const router = useRouter();
@@ -349,51 +549,15 @@ export default function ExamVerificationInterface() {
   const [verificationType, setVerificationType] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
-  const [selectedExamSession, setSelectedExamSession] = useState('');
-  const [examSessions, setExamSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [stream, setStream] = useState(null);
-
-  // Load exam sessions (courses) from Appwrite
-  useEffect(() => {
-    loadExamSessions();
-  }, []);
-
-  const loadExamSessions = async () => {
-    try {
-      setLoading(true);
-      const result = await getAllCourses();
-      
-      if (result.success) {
-        // Transform courses into exam sessions format
-        const sessions = result.data.map(course => ({
-          id: course.$id,
-          name: `${course.courseCode} - ${course.courseTitle}`,
-          date: new Date().toISOString().split('T')[0], // Today's date
-          time: '09:00 AM', // Default time
-          level: course.level,
-          department: course.department,
-          semester: course.semester
-        }));
-        setExamSessions(sessions);
-      } else {
-        setError('Failed to load exam sessions');
-      }
-    } catch (err) {
-      console.error('Error loading exam sessions:', err);
-      setError('Failed to load exam sessions');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [scanProgress, setScanProgress] = useState(0);
 
   // Start camera for face recognition
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' } 
+        video: { facingMode: 'user', width: 1280, height: 720 } 
       });
       
       if (videoRef.current) {
@@ -446,19 +610,35 @@ export default function ExamVerificationInterface() {
 
     setIsScanning(true);
     setVerificationResult(null);
+    setScanProgress(0);
 
     try {
       // Capture image from camera
+      setScanProgress(20);
       const capturedImage = await captureFaceImage();
       
       if (!capturedImage) {
         throw new Error('Failed to capture image');
       }
 
-      // Verify face using Appwrite function
-      const result = await verifyFaceRecognition(capturedImage);
+      setScanProgress(40);
+      
+      // Call Appwrite function to verify face
+      const response = await fetch('/api/verify-student-face', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          capturedImageBase64: await fileToBase64(capturedImage)
+        })
+      });
 
-      if (result.matched) {
+      setScanProgress(80);
+      const result = await response.json();
+      setScanProgress(100);
+
+      if (result.success && result.matched) {
         setVerificationResult({
           success: true,
           student: result.student,
@@ -470,7 +650,7 @@ export default function ExamVerificationInterface() {
       } else {
         setVerificationResult({
           success: false,
-          message: result.message || 'No matching record found',
+          message: result.message || 'No matching student found',
           confidence: 0
         });
       }
@@ -483,32 +663,52 @@ export default function ExamVerificationInterface() {
       });
     } finally {
       setIsScanning(false);
+      setScanProgress(0);
     }
+  };
+
+  // Convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
   };
 
   // Handle fingerprint verification
   const handleFingerprintVerification = async () => {
     setIsScanning(true);
     setVerificationResult(null);
+    setScanProgress(0);
 
     try {
-      // TODO: Replace with actual fingerprint scanner SDK call
-      // Example: const template = await fingerprintScanner.capture();
-      
-      // For now, we'll simulate waiting for fingerprint
-      // You need to integrate your actual fingerprint scanner SDK here
       alert('Please place your finger on the scanner...');
+      setScanProgress(30);
       
-      // Simulated delay - replace with actual scanner wait
       await new Promise(resolve => setTimeout(resolve, 2000));
+      setScanProgress(60);
       
-      // TODO: Get actual template from your scanner
+      // TODO: Get actual template from your fingerprint scanner SDK
       const capturedTemplate = 'FINGERPRINT_TEMPLATE_FROM_SCANNER';
       
-      // Verify fingerprint using Appwrite function
-      const result = await verifyFingerprintScanner(capturedTemplate);
+      // Call Appwrite function to verify fingerprint
+      const response = await fetch('/api/verify-student-fingerprint', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fingerprintTemplate: capturedTemplate
+        })
+      });
 
-      if (result.matched) {
+      setScanProgress(90);
+      const result = await response.json();
+      setScanProgress(100);
+
+      if (result.success && result.matched) {
         setVerificationResult({
           success: true,
           student: result.student,
@@ -519,7 +719,7 @@ export default function ExamVerificationInterface() {
       } else {
         setVerificationResult({
           success: false,
-          message: result.message || 'No matching record found',
+          message: result.message || 'No matching student found',
           confidence: 0
         });
       }
@@ -532,12 +732,13 @@ export default function ExamVerificationInterface() {
       });
     } finally {
       setIsScanning(false);
+      setScanProgress(0);
     }
   };
 
   const handleStartVerification = async () => {
-    if (!verificationType || !selectedExamSession) {
-      alert('Please select verification method and exam session');
+    if (!verificationType) {
+      alert('Please select a verification method');
       return;
     }
 
@@ -551,11 +752,9 @@ export default function ExamVerificationInterface() {
   const handleAllowEntry = async () => {
     if (!verificationResult?.student) return;
 
-    // TODO: Save verification to database
     const verificationData = {
       studentId: verificationResult.student.$id,
       matricNumber: verificationResult.student.matricNumber,
-      examSessionId: selectedExamSession,
       verificationMethod: verificationResult.verificationType,
       verificationStatus: 'Success',
       confidenceScore: verificationResult.confidence,
@@ -563,10 +762,11 @@ export default function ExamVerificationInterface() {
       checkedIn: true
     };
 
-    console.log('Verification data to save:', verificationData);
-    // await databases.createDocument(...) - implement saving logic
+    console.log('Verification logged:', verificationData);
     
-    alert(`${verificationResult.student.firstName} ${verificationResult.student.surname} has been checked in successfully!`);
+    // TODO: Save to verification logs collection
+    
+    alert(`${verificationResult.student.firstName} ${verificationResult.student.surname} has been verified and checked in!`);
     resetVerification();
   };
 
@@ -577,23 +777,11 @@ export default function ExamVerificationInterface() {
     stopCamera();
   };
 
-  // Cleanup camera on unmount
   useEffect(() => {
     return () => {
       stopCamera();
     };
   }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-semibold">Loading exam sessions...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 sm:p-6 lg:p-8">
@@ -613,40 +801,15 @@ export default function ExamVerificationInterface() {
             <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
-            <span>Exam Verification System</span>
+            <span>Student Identity Verification</span>
           </h1>
-          <p className="text-gray-600 mt-2">Verify student identity for exam entry</p>
+          <p className="text-gray-600 mt-2">Verify student identity using biometric authentication</p>
         </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-            {error}
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Panel - Verification Controls */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-6">Verification Setup</h2>
-
-            {/* Exam Session Selection */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Select Exam Session *
-              </label>
-              <select
-                value={selectedExamSession}
-                onChange={(e) => setSelectedExamSession(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="">Choose exam session...</option>
-                {examSessions.map(session => (
-                  <option key={session.id} value={session.id}>
-                    {session.name} - {session.date}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-6">Verification Method</h2>
 
             {/* Verification Method Selection */}
             <div className="mb-6">
@@ -706,6 +869,14 @@ export default function ExamVerificationInterface() {
                       <p className="text-white text-sm">Camera will activate when you start verification</p>
                     </div>
                   )}
+                  {isScanning && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
+                      <div 
+                        className="h-full bg-green-500 transition-all duration-300"
+                        style={{ width: `${scanProgress}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <canvas ref={canvasRef} className="hidden" />
               </div>
@@ -714,14 +885,14 @@ export default function ExamVerificationInterface() {
             {/* Start Verification Button */}
             <button
               onClick={handleStartVerification}
-              disabled={isScanning || !verificationType || !selectedExamSession}
+              disabled={isScanning || !verificationType}
               className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
-                isScanning || !verificationType || !selectedExamSession
+                isScanning || !verificationType
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg'
               }`}
             >
-              {isScanning ? 'Scanning...' : cameraActive ? 'Capture & Verify' : 'Start Verification'}
+              {isScanning ? `Scanning... ${scanProgress}%` : cameraActive ? 'Capture & Verify' : 'Start Verification'}
             </button>
 
             {/* Scanning Animation */}
@@ -734,7 +905,7 @@ export default function ExamVerificationInterface() {
                   </span>
                 </div>
                 <p className="text-center text-sm text-gray-600">
-                  Please wait while we match your biometric data
+                  Searching database for matching biometric data
                 </p>
               </div>
             )}
@@ -761,7 +932,7 @@ export default function ExamVerificationInterface() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-red-600 mb-2">No Record Found</h3>
+                <h3 className="text-2xl font-bold text-red-600 mb-2">No Match Found</h3>
                 <p className="text-gray-600 text-center mb-6">
                   {verificationResult.message}
                 </p>
@@ -837,10 +1008,6 @@ export default function ExamVerificationInterface() {
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <p className="text-xs text-gray-500 mb-1">Email</p>
                       <p className="font-semibold text-gray-800">{verificationResult.student.email}</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-1">Phone Number</p>
-                      <p className="font-semibold text-gray-800">{verificationResult.student.phoneNumber}</p>
                     </div>
                   </div>
                 </div>
