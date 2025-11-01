@@ -76,13 +76,15 @@ export default async function handler(
 
     // Iterate through each student and compare faces
     for (const student of studentsResponse.documents) {
-      if (!student.faceImageUrl) continue;
+      if (!student.profilePictureUrl) continue;
+      // if (!student.faceImageUrl) continue;
 
       console.log(`🔄 Checking: ${student.firstName} ${student.surname} (${student.matricNumber})`);
 
       try {
         // Fetch stored face image
-        const storedImageResponse = await fetch(student.faceImageUrl);
+        const storedImageResponse = await fetch(student.profilePictureUrl);
+        // const storedImageResponse = await fetch(student.faceImageUrl);
         const storedImageBuffer = Buffer.from(await storedImageResponse.arrayBuffer());
 
         // Prepare form data for Face++ API
