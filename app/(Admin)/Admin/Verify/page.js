@@ -500,7 +500,7 @@
 "use client"
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyStudentFace, verifyStudentFingerprint, saveVerificationLog } from '@/lib/verification';
+import { searchStudentByFace, verifyFingerprintScanner } from '@/lib/appwrite';
 
 export default function ExamVerificationInterface() {
   const router = useRouter();
@@ -554,20 +554,7 @@ export default function ExamVerificationInterface() {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
     
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        resolve(new File([blob], 'captured-face.jpg', { type: 'image/jpeg' }));
-      }, 'image/jpeg', 0.95);
-    });
-  };
-
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
-    });
+    return canvas.toDataURL('image/jpeg', 0.95);
   };
 
   const handleFaceVerification = async () => {
@@ -583,21 +570,20 @@ export default function ExamVerificationInterface() {
 
     try {
       setScanProgress(20);
-      const capturedImage = await captureFaceImage();
+      const capturedImageBase64 = captureFaceImage();
       
-      if (!capturedImage) {
+      if (!capturedImageBase64) {
         throw new Error('Failed to capture image');
       }
 
       setScanProgress(40);
-      const capturedImageBase64 = await fileToBase64(capturedImage);
+      console.log('📸 Image captured, searching for match...');
 
-      setScanProgress(60);
-      
-      // Use the verification library directly
-      const result = await verifyStudentFace(capturedImageBase64);
+      // Use Face++ Search API through appwrite function
+      const result = await searchStudentByFace(capturedImageBase64);
 
       setScanProgress(100);
+      console.log('🔍 Search result:', result);
 
       if (result.success && result.matched) {
         setVerificationResult({
@@ -605,14 +591,16 @@ export default function ExamVerificationInterface() {
           student: result.student,
           confidence: result.confidence,
           matchTime: result.matchTime,
-          verificationType: 'Face Recognition'
+          verificationType: 'Face Recognition',
+          allMatches: result.allMatches // Show all potential matches
         });
         stopCamera();
       } else {
         setVerificationResult({
           success: false,
           message: result.message || 'No matching student found',
-          confidence: 0
+          confidence: result.confidence || 0,
+          error: result.error
         });
       }
     } catch (err) {
@@ -645,8 +633,7 @@ export default function ExamVerificationInterface() {
       // TODO: Get actual template from fingerprint scanner SDK
       const capturedTemplate = 'FINGERPRINT_TEMPLATE_FROM_SCANNER';
       
-      // Use the verification library directly
-      const result = await verifyStudentFingerprint(capturedTemplate);
+      const result = await verifyFingerprintScanner(capturedTemplate);
 
       setScanProgress(100);
 
@@ -705,8 +692,7 @@ export default function ExamVerificationInterface() {
       checkedIn: true
     };
 
-    // Save verification log (optional)
-    await saveVerificationLog(verificationData);
+    console.log('Verification logged:', verificationData);
     
     alert(`${verificationResult.student.firstName} ${verificationResult.student.surname} has been verified and checked in!`);
     resetVerification();
@@ -763,7 +749,6 @@ export default function ExamVerificationInterface() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Panel */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Verification Method</h2>
 
@@ -820,7 +805,9 @@ export default function ExamVerificationInterface() {
                   />
                   {!cameraActive && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
-                      <p className="text-white text-sm">Camera will activate when you start verification</p>
+                      <p className="text-white text-sm text-center px-4">
+                        Camera will activate when you click "Start Verification"
+                      </p>
                     </div>
                   )}
                   {isScanning && (
@@ -833,6 +820,9 @@ export default function ExamVerificationInterface() {
                   )}
                 </div>
                 <canvas ref={canvasRef} className="hidden" />
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  💡 Tip: Ensure good lighting and face the camera directly
+                </p>
               </div>
             )}
 
@@ -853,17 +843,16 @@ export default function ExamVerificationInterface() {
                 <div className="flex items-center justify-center space-x-3 mb-4">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   <span className="text-blue-600 font-semibold">
-                    {verificationType === 'Fingerprint' ? 'Verifying fingerprint...' : 'Verifying face...'}
+                    {verificationType === 'Fingerprint' ? 'Verifying fingerprint...' : 'Searching for matching face...'}
                   </span>
                 </div>
                 <p className="text-center text-sm text-gray-600">
-                  Searching database for matching biometric data
+                  Comparing against registered student database
                 </p>
               </div>
             )}
           </div>
 
-          {/* Right Panel */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Verification Result</h2>
 
@@ -885,9 +874,14 @@ export default function ExamVerificationInterface() {
                   </svg>
                 </div>
                 <h3 className="text-2xl font-bold text-red-600 mb-2">No Match Found</h3>
-                <p className="text-gray-600 text-center mb-6">
+                <p className="text-gray-600 text-center mb-6 px-4">
                   {verificationResult.message}
                 </p>
+                {verificationResult.confidence > 0 && (
+                  <p className="text-sm text-gray-500 mb-4">
+                    Confidence: {verificationResult.confidence}%
+                  </p>
+                )}
                 <button
                   onClick={resetVerification}
                   className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
