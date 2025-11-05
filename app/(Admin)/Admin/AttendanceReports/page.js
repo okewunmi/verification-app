@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCourseAttendanceReport } from '@/lib/appwrite';
+import { getSessionAttendanceReport } from '@/lib/appwrite';
 
 export default function AttendanceReports() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function AttendanceReports() {
     setIsLoading(true);
 
     try {
-      const result = await getCourseAttendanceReport(courseCode.toUpperCase(), selectedDate);
+      const result = await getSessionAttendanceReport(courseCode.toUpperCase(), selectedDate);
       
       if (result.success) {
         setReport(result);
