@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  getCoursesWithRegisteredStudents,
+  getAllCourseRegistrationsWithStudents,
+  // getCoursesWithRegisteredStudents,
   createAttendanceSession,
   adminMarkAttendance,
   closeAttendanceSession,
@@ -27,7 +28,7 @@ export default function AdminAttendanceInterface() {
 
   const loadCourses = async () => {
     try {
-      const result = await getCoursesWithRegisteredStudents();
+      const result = await getAllCourseRegistrationsWithStudents();
       if (result.success) {
         setCourses(result.data);
       }
