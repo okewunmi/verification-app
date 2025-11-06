@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  getAllCourseRegistrationsWithStudents,
-  // getCoursesWithRegisteredStudents,
+  getCoursesWithRegisteredStudents,
   createAttendanceSession,
   adminMarkAttendance,
   closeAttendanceSession,
@@ -28,12 +27,31 @@ export default function AdminAttendanceInterface() {
 
   const loadCourses = async () => {
     try {
-      const result = await getAllCourseRegistrationsWithStudents();
+      console.log('Loading courses for attendance...');
+      const result = await getCoursesWithRegisteredStudents();
+      
       if (result.success) {
+        console.log('Courses loaded:', result.data.length);
         setCourses(result.data);
+        
+        if (result.data.length === 0) {
+          setLastResult({
+            success: false,
+            error: 'No courses with approved registrations found. Please ensure students have registered and their registrations are approved.'
+          });
+        }
+      } else {
+        setLastResult({
+          success: false,
+          error: result.error || 'Failed to load courses'
+        });
       }
     } catch (error) {
       console.error('Error loading courses:', error);
+      setLastResult({
+        success: false,
+        error: 'Failed to load courses. Please try refreshing the page.'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -280,6 +298,24 @@ export default function AdminAttendanceInterface() {
               </table>
             </div>
           </div>
+        ) : lastResult && !lastResult.success && courses.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
+            <svg className="w-32 h-32 mx-auto mb-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">No Courses Available</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              {lastResult.error || 'No courses with approved student registrations found.'}
+            </p>
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 max-w-md mx-auto">
+              <p className="text-sm text-blue-900 font-semibold mb-2">Next Steps:</p>
+              <ol className="text-sm text-blue-800 text-left space-y-2">
+                <li>1. Ensure students have registered for courses</li>
+                <li>2. Approve student course registrations in the admin panel</li>
+                <li>3. Refresh this page to see available courses</li>
+              </ol>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-2xl shadow-xl p-6">
@@ -289,25 +325,56 @@ export default function AdminAttendanceInterface() {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-3">Select Course *</label>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {courses.map((course) => (
-                        <button
-                          key={course.courseCode}
-                          onClick={() => setSelectedCourse(course)}
-                          className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                            selectedCourse?.courseCode === course.courseCode
-                              ? 'border-indigo-600 bg-indigo-50'
-                              : 'border-gray-200 hover:border-indigo-300'
-                          }`}
-                        >
-                          <p className="font-bold text-gray-800">{course.courseCode}</p>
-                          <p className="text-sm text-gray-600 mt-1">{course.courseTitle}</p>
-                          <p className="text-xs text-gray-500 mt-2">
-                            {course.studentCount} student{course.studentCount !== 1 ? 's' : ''} registered
-                          </p>
-                        </button>
-                      ))}
-                    </div>
+                    
+                    {courses.length === 0 ? (
+                      <div className="text-center py-8 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                        <svg className="w-16 h-16 mx-auto mb-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p className="text-yellow-800 font-medium mb-2">No Courses Available</p>
+                        <p className="text-sm text-yellow-700">
+                          No courses with approved student registrations found.<br />
+                          Please ensure students have registered and been approved.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto border-2 border-gray-200 rounded-lg p-2">
+                        {courses.map((course) => (
+                          <button
+                            key={course.courseCode}
+                            onClick={() => setSelectedCourse(course)}
+                            className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                              selectedCourse?.courseCode === course.courseCode
+                                ? 'border-indigo-600 bg-indigo-50'
+                                : 'border-gray-200 hover:border-indigo-300 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <p className="font-bold text-gray-800">{course.courseCode}</p>
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{course.courseTitle}</p>
+                                <div className="flex gap-2 mt-2">
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    {course.courseUnit} Units
+                                  </span>
+                                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                    {course.studentCount} Student{course.studentCount !== 1 ? 's' : ''}
+                                  </span>
+                                  <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                    {course.semester}
+                                  </span>
+                                </div>
+                              </div>
+                              {selectedCourse?.courseCode === course.courseCode && (
+                                <svg className="w-6 h-6 text-indigo-600 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div>
