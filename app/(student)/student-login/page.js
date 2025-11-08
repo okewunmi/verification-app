@@ -381,7 +381,7 @@ export default function StudentLogin() {
         )}
 
         <div className="mt-6 text-center text-sm text-gray-600">
-          <p>Default password is your surname (lowercase)</p>
+          <p>Default password is your surname </p>
           <p className="mt-2">Need help? Contact administrator</p>
         </div>
       </div>
