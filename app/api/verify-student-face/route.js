@@ -1,4 +1,4 @@
-// pages/api/verify-student-face.js
+
 import { Client, Databases, Query } from 'appwrite';
 
 const client = new Client()

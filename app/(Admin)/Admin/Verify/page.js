@@ -559,8 +559,13 @@ export default function ExamVerificationInterface() {
       setScanProgress(40);
       console.log('📸 Image captured, searching for match...');
 
-      const result = await searchStudentByFace(capturedImageBase64);
-
+      // const result = await searchStudentByFace(capturedImageBase64);
+      const response = await fetch('/api/verify-face-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ capturedImageBase64: imageBase64 })
+      });
+      const result = await response.json();
       setScanProgress(100);
       console.log('🔍 Search result:', result);
 
@@ -967,3 +972,4 @@ export default function ExamVerificationInterface() {
     </div>
   );
 }
+

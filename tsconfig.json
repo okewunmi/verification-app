@@ -28,7 +28,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app/page.jsx",
-    "app/api/verify-student-face.js"
+    "app/api/get-all-courses/route.js"
   ],
   "exclude": ["node_modules"]
 }
