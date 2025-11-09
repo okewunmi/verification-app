@@ -8,7 +8,7 @@ import {
   closeAttendanceSession,
   getSessionAttendanceReport
 } from '@/lib/appwrite';
-import fingerprintScanner from '@/lib/fingerprint-digitalpersona';
+import fingerprintScanner from '@/lib/fingerprint-webauthn';
 import { verifyStudentFingerprint } from '@/lib/appwrite';
 
 export default function AdminAttendanceInterface() {
