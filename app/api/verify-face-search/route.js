@@ -1,4 +1,4 @@
-import { searchStudentByFace } from '@/lib/facepp-utils';
+import { searchStudentByFace } from '@/lib/appwrite';
 
 /**
  * Face++ Search API - FASTEST METHOD
