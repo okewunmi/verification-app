@@ -1,6 +1,7 @@
 // "use client"
 // import { useState, useEffect, useRef } from 'react';
 // import { useRouter } from 'next/navigation';
+// import { searchStudentByFace, verifyFingerprintScanner } from '@/lib/appwrite';
 
 // export default function ExamVerificationInterface() {
 //   const router = useRouter();
@@ -13,8 +14,8 @@
 //   const [cameraActive, setCameraActive] = useState(false);
 //   const [stream, setStream] = useState(null);
 //   const [scanProgress, setScanProgress] = useState(0);
+//   const [errorMessage, setErrorMessage] = useState('');
 
-//   // Start camera for face recognition
 //   const startCamera = async () => {
 //     try {
 //       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
@@ -27,13 +28,13 @@
       
 //       setStream(mediaStream);
 //       setCameraActive(true);
+//       setErrorMessage('');
 //     } catch (err) {
 //       console.error('Camera access error:', err);
-//       alert('Unable to access camera. Please check permissions.');
+//       setErrorMessage('Unable to access camera. Please check permissions.');
 //     }
 //   };
 
-//   // Stop camera
 //   const stopCamera = () => {
 //     if (stream) {
 //       stream.getTracks().forEach(track => track.stop());
@@ -42,7 +43,6 @@
 //     setCameraActive(false);
 //   };
 
-//   // Capture face image from camera
 //   const captureFaceImage = () => {
 //     if (!videoRef.current || !canvasRef.current) return null;
 
@@ -55,14 +55,9 @@
 //     const ctx = canvas.getContext('2d');
 //     ctx.drawImage(video, 0, 0);
     
-//     return new Promise((resolve) => {
-//       canvas.toBlob((blob) => {
-//         resolve(new File([blob], 'captured-face.jpg', { type: 'image/jpeg' }));
-//       }, 'image/jpeg', 0.95);
-//     });
+//     return canvas.toDataURL('image/jpeg', 0.95);
 //   };
 
-//   // Handle face recognition verification
 //   const handleFaceVerification = async () => {
 //     if (!cameraActive) {
 //       await startCamera();
@@ -72,32 +67,24 @@
 //     setIsScanning(true);
 //     setVerificationResult(null);
 //     setScanProgress(0);
+//     setErrorMessage('');
 
 //     try {
-//       // Capture image from camera
 //       setScanProgress(20);
-//       const capturedImage = await captureFaceImage();
+//       const capturedImageBase64 = captureFaceImage();
       
-//       if (!capturedImage) {
+//       if (!capturedImageBase64) {
 //         throw new Error('Failed to capture image');
 //       }
 
 //       setScanProgress(40);
-      
-//       // Call Appwrite function to verify face
-//       const response = await fetch('https://ftpv.appwrite.network/api/verify-student-face', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify({
-//           capturedImageBase64: await fileToBase64(capturedImage)
-//         })
-//       });
+//       console.log('📸 Image captured, searching for match...');
 
-//       setScanProgress(80);
-//       const result = await response.json();
+//       // Use Face++ Search API through appwrite function
+//       const result = await searchStudentByFace(capturedImageBase64);
+
 //       setScanProgress(100);
+//       console.log('🔍 Search result:', result);
 
 //       if (result.success && result.matched) {
 //         setVerificationResult({
@@ -105,18 +92,21 @@
 //           student: result.student,
 //           confidence: result.confidence,
 //           matchTime: result.matchTime,
-//           verificationType: 'Face Recognition'
+//           verificationType: 'Face Recognition',
+//           allMatches: result.allMatches // Show all potential matches
 //         });
 //         stopCamera();
 //       } else {
 //         setVerificationResult({
 //           success: false,
 //           message: result.message || 'No matching student found',
-//           confidence: 0
+//           confidence: result.confidence || 0,
+//           error: result.error
 //         });
 //       }
 //     } catch (err) {
 //       console.error('Face verification error:', err);
+//       setErrorMessage(err.message);
 //       setVerificationResult({
 //         success: false,
 //         message: err.message || 'Verification failed',
@@ -128,21 +118,11 @@
 //     }
 //   };
 
-//   // Convert file to base64
-//   const fileToBase64 = (file) => {
-//     return new Promise((resolve, reject) => {
-//       const reader = new FileReader();
-//       reader.readAsDataURL(file);
-//       reader.onload = () => resolve(reader.result);
-//       reader.onerror = error => reject(error);
-//     });
-//   };
-
-//   // Handle fingerprint verification
 //   const handleFingerprintVerification = async () => {
 //     setIsScanning(true);
 //     setVerificationResult(null);
 //     setScanProgress(0);
+//     setErrorMessage('');
 
 //     try {
 //       alert('Please place your finger on the scanner...');
@@ -151,22 +131,11 @@
 //       await new Promise(resolve => setTimeout(resolve, 2000));
 //       setScanProgress(60);
       
-//       // TODO: Get actual template from your fingerprint scanner SDK
+//       // TODO: Get actual template from fingerprint scanner SDK
 //       const capturedTemplate = 'FINGERPRINT_TEMPLATE_FROM_SCANNER';
       
-//       // Call Appwrite function to verify fingerprint
-//       const response = await fetch('/api/verify-student-fingerprint', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify({
-//           fingerprintTemplate: capturedTemplate
-//         })
-//       });
+//       const result = await verifyFingerprintScanner(capturedTemplate);
 
-//       setScanProgress(90);
-//       const result = await response.json();
 //       setScanProgress(100);
 
 //       if (result.success && result.matched) {
@@ -186,6 +155,7 @@
 //       }
 //     } catch (err) {
 //       console.error('Fingerprint verification error:', err);
+//       setErrorMessage(err.message);
 //       setVerificationResult({
 //         success: false,
 //         message: err.message || 'Verification failed',
@@ -225,8 +195,6 @@
 
 //     console.log('Verification logged:', verificationData);
     
-//     // TODO: Save to verification logs collection
-    
 //     alert(`${verificationResult.student.firstName} ${verificationResult.student.surname} has been verified and checked in!`);
 //     resetVerification();
 //   };
@@ -235,6 +203,7 @@
 //     setVerificationResult(null);
 //     setVerificationType('');
 //     setIsScanning(false);
+//     setErrorMessage('');
 //     stopCamera();
 //   };
 
@@ -247,7 +216,6 @@
 //   return (
 //     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 sm:p-6 lg:p-8">
 //       <div className="max-w-6xl mx-auto">
-//         {/* Header */}
 //         <div className="mb-8">
 //           <button 
 //             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"  
@@ -267,12 +235,24 @@
 //           <p className="text-gray-600 mt-2">Verify student identity using biometric authentication</p>
 //         </div>
 
+//         {errorMessage && (
+//           <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl">
+//             <div className="flex items-start space-x-3">
+//               <svg className="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+//               </svg>
+//               <div>
+//                 <p className="font-semibold text-red-800">Error</p>
+//                 <p className="text-red-700 text-sm">{errorMessage}</p>
+//               </div>
+//             </div>
+//           </div>
+//         )}
+
 //         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-//           {/* Left Panel - Verification Controls */}
 //           <div className="bg-white rounded-2xl shadow-xl p-6">
 //             <h2 className="text-xl font-bold text-gray-800 mb-6">Verification Method</h2>
 
-//             {/* Verification Method Selection */}
 //             <div className="mb-6">
 //               <label className="block text-sm font-semibold text-gray-700 mb-3">
 //                 Select Verification Method *
@@ -315,7 +295,6 @@
 //               </div>
 //             </div>
 
-//             {/* Camera Preview for Face Recognition */}
 //             {verificationType === 'Face' && (
 //               <div className="mb-6">
 //                 <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
@@ -327,7 +306,9 @@
 //                   />
 //                   {!cameraActive && (
 //                     <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
-//                       <p className="text-white text-sm">Camera will activate when you start verification</p>
+//                       <p className="text-white text-sm text-center px-4">
+//                         Camera will activate when you click "Start Verification"
+//                       </p>
 //                     </div>
 //                   )}
 //                   {isScanning && (
@@ -340,10 +321,12 @@
 //                   )}
 //                 </div>
 //                 <canvas ref={canvasRef} className="hidden" />
+//                 <p className="text-xs text-gray-500 mt-2 text-center">
+//                   💡 Tip: Ensure good lighting and face the camera directly
+//                 </p>
 //               </div>
 //             )}
 
-//             {/* Start Verification Button */}
 //             <button
 //               onClick={handleStartVerification}
 //               disabled={isScanning || !verificationType}
@@ -356,23 +339,21 @@
 //               {isScanning ? `Scanning... ${scanProgress}%` : cameraActive ? 'Capture & Verify' : 'Start Verification'}
 //             </button>
 
-//             {/* Scanning Animation */}
 //             {isScanning && (
 //               <div className="mt-6 p-6 bg-blue-50 rounded-xl border-2 border-blue-200">
 //                 <div className="flex items-center justify-center space-x-3 mb-4">
 //                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
 //                   <span className="text-blue-600 font-semibold">
-//                     {verificationType === 'Fingerprint' ? 'Verifying fingerprint...' : 'Verifying face...'}
+//                     {verificationType === 'Fingerprint' ? 'Verifying fingerprint...' : 'Searching for matching face...'}
 //                   </span>
 //                 </div>
 //                 <p className="text-center text-sm text-gray-600">
-//                   Searching database for matching biometric data
+//                   Comparing against registered student database
 //                 </p>
 //               </div>
 //             )}
 //           </div>
 
-//           {/* Right Panel - Verification Result */}
 //           <div className="bg-white rounded-2xl shadow-xl p-6">
 //             <h2 className="text-xl font-bold text-gray-800 mb-6">Verification Result</h2>
 
@@ -394,9 +375,14 @@
 //                   </svg>
 //                 </div>
 //                 <h3 className="text-2xl font-bold text-red-600 mb-2">No Match Found</h3>
-//                 <p className="text-gray-600 text-center mb-6">
+//                 <p className="text-gray-600 text-center mb-6 px-4">
 //                   {verificationResult.message}
 //                 </p>
+//                 {verificationResult.confidence > 0 && (
+//                   <p className="text-sm text-gray-500 mb-4">
+//                     Confidence: {verificationResult.confidence}%
+//                   </p>
+//                 )}
 //                 <button
 //                   onClick={resetVerification}
 //                   className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
@@ -408,7 +394,6 @@
 
 //             {verificationResult && verificationResult.success && (
 //               <div className="space-y-6">
-//                 {/* Success Badge */}
 //                 <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
 //                   <div className="flex items-center justify-center space-x-3">
 //                     <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
@@ -423,9 +408,7 @@
 //                   </div>
 //                 </div>
 
-//                 {/* Student Information */}
 //                 <div className="space-y-4">
-//                   {/* Photo and Basic Info */}
 //                   <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl">
 //                     {verificationResult.student.profilePictureUrl ? (
 //                       <img
@@ -456,7 +439,6 @@
 //                     </div>
 //                   </div>
 
-//                   {/* Detailed Information */}
 //                   <div className="grid grid-cols-1 gap-3">
 //                     <div className="p-3 bg-gray-50 rounded-lg">
 //                       <p className="text-xs text-gray-500 mb-1">Department</p>
@@ -473,7 +455,6 @@
 //                   </div>
 //                 </div>
 
-//                 {/* Action Buttons */}
 //                 <div className="grid grid-cols-2 gap-4 pt-4">
 //                   <button
 //                     onClick={handleAllowEntry}
@@ -496,12 +477,11 @@
 //     </div>
 //   );
 // }
-
 "use client"
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchStudentByFace, verifyFingerprintScanner } from '@/lib/appwrite';
-
+import { searchStudentByFace, verifyStudentFingerprint } from '@/lib/appwrite';
+import fingerprintScanner from '@/lib/fingerprint-webauthn';
 export default function ExamVerificationInterface() {
   const router = useRouter();
   const videoRef = useRef(null);
@@ -579,7 +559,6 @@ export default function ExamVerificationInterface() {
       setScanProgress(40);
       console.log('📸 Image captured, searching for match...');
 
-      // Use Face++ Search API through appwrite function
       const result = await searchStudentByFace(capturedImageBase64);
 
       setScanProgress(100);
@@ -592,7 +571,7 @@ export default function ExamVerificationInterface() {
           confidence: result.confidence,
           matchTime: result.matchTime,
           verificationType: 'Face Recognition',
-          allMatches: result.allMatches // Show all potential matches
+          allMatches: result.allMatches
         });
         stopCamera();
       } else {
@@ -617,54 +596,62 @@ export default function ExamVerificationInterface() {
     }
   };
 
-  const handleFingerprintVerification = async () => {
-    setIsScanning(true);
-    setVerificationResult(null);
-    setScanProgress(0);
-    setErrorMessage('');
+ const handleFingerprintVerification = async () => {
+  setIsScanning(true);
+  setVerificationResult(null);
+  setScanProgress(0);
+  setErrorMessage('');
 
-    try {
-      alert('Please place your finger on the scanner...');
-      setScanProgress(30);
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setScanProgress(60);
-      
-      // TODO: Get actual template from fingerprint scanner SDK
-      const capturedTemplate = 'FINGERPRINT_TEMPLATE_FROM_SCANNER';
-      
-      const result = await verifyFingerprintScanner(capturedTemplate);
+  try {
+    console.log('🔧 Checking fingerprint availability...');
+    setScanProgress(10);
 
-      setScanProgress(100);
+    // Check if fingerprint is available
+    const checkResult = await fingerprintScanner.isAvailable();
+    
+    if (!checkResult.available) {
+      throw new Error(checkResult.error || 'Fingerprint reader not available');
+    }
 
-      if (result.success && result.matched) {
-        setVerificationResult({
-          success: true,
-          student: result.student,
-          confidence: result.confidence,
-          matchTime: result.matchTime,
-          verificationType: 'Fingerprint'
-        });
-      } else {
-        setVerificationResult({
-          success: false,
-          message: result.message || 'No matching student found',
-          confidence: 0
-        });
-      }
-    } catch (err) {
-      console.error('Fingerprint verification error:', err);
-      setErrorMessage(err.message);
+    setScanProgress(20);
+    alert('Please use your fingerprint to verify...');
+
+    // Verify fingerprint (WebAuthn handles everything)
+    const result = await verifyStudentFingerprint();
+
+    setScanProgress(100);
+
+    if (result.success && result.matched) {
+      setVerificationResult({
+        success: true,
+        student: result.student,
+        confidence: result.confidence,
+        matchTime: result.matchTime,
+        verificationType: 'Fingerprint (Windows Hello)',
+        fingerUsed: result.fingerUsed
+      });
+    } else {
       setVerificationResult({
         success: false,
-        message: err.message || 'Verification failed',
+        message: result.message || 'No matching student found',
         confidence: 0
       });
-    } finally {
-      setIsScanning(false);
-      setScanProgress(0);
     }
-  };
+
+  } catch (err) {
+    console.error('Fingerprint verification error:', err);
+    setErrorMessage(err.message);
+    setVerificationResult({
+      success: false,
+      message: err.message || 'Verification failed',
+      confidence: 0
+    });
+  } finally {
+    setIsScanning(false);
+    setScanProgress(0);
+    await fingerprintScanner.stop();
+  }
+};
 
   const handleStartVerification = async () => {
     if (!verificationType) {
@@ -709,6 +696,7 @@ export default function ExamVerificationInterface() {
   useEffect(() => {
     return () => {
       stopCamera();
+      fingerprintScanner.stop();
     };
   }, []);
 
@@ -903,6 +891,9 @@ export default function ExamVerificationInterface() {
                     <div>
                       <p className="text-green-600 font-semibold text-lg">Verification Successful!</p>
                       <p className="text-green-600 text-sm">Confidence: {verificationResult.confidence}%</p>
+                      {verificationResult.fingerUsed && (
+                        <p className="text-green-600 text-xs">Matched: {verificationResult.fingerUsed} finger</p>
+                      )}
                     </div>
                   </div>
                 </div>

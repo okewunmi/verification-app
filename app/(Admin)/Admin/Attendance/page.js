@@ -8,6 +8,8 @@ import {
   closeAttendanceSession,
   getSessionAttendanceReport
 } from '@/lib/appwrite';
+import fingerprintScanner from '@/lib/fingerprint-digitalpersona';
+import { verifyStudentFingerprint } from '@/lib/appwrite';
 
 export default function AdminAttendanceInterface() {
   const router = useRouter();
@@ -91,71 +93,194 @@ export default function AdminAttendanceInterface() {
     }
   };
 
-  const handleScanFingerprint = async () => {
-    if (!activeSession) {
-      alert('Please start a session first');
+ const handleScanFingerprint = async () => {
+  if (!activeSession) {
+    alert('Please start a session first');
+    return;
+  }
+
+  setIsScanning(true);
+  setLastResult(null);
+
+  try {
+    const scanPrompt = sessionType === 'signin' 
+      ? 'Student: Please place your finger on the scanner for SIGN IN...'
+      : 'Student: Please place your finger on the scanner for SIGN OUT...';
+    
+    alert(scanPrompt);
+
+    // Initialize scanner
+    console.log('🔧 Initializing scanner...');
+    const initResult = await fingerprintScanner.initialize();
+    
+    if (!initResult.success) {
+      throw new Error('Scanner not available. Please ensure DigitalPersona software is installed.');
+    }
+
+    // Capture fingerprint
+    console.log('👆 Waiting for fingerprint...');
+    const captureResult = await fingerprintScanner.capture();
+    
+    if (!captureResult.success) {
+      throw new Error(captureResult.error);
+    }
+
+    console.log('✅ Fingerprint captured, verifying...');
+
+    // Verify fingerprint and get student
+    const verifyResult = await verifyStudentFingerprint(captureResult.template);
+
+    if (!verifyResult.success || !verifyResult.matched) {
+      setLastResult({
+        success: false,
+        error: verifyResult.message || 'No matching student found'
+      });
       return;
     }
 
-    setIsScanning(true);
-    setLastResult(null);
+    const student = verifyResult.student;
 
-    try {
-      // Prompt for fingerprint
-      const scanPrompt = sessionType === 'signin' 
-        ? 'Please ask the student to place their finger on the scanner for SIGN IN...'
-        : 'Please ask the student to place their finger on the scanner for SIGN OUT...';
-      
-      console.log(scanPrompt);
-      
-      // Simulate scanner prompt
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    // Check if student is registered for this course
+    const isRegistered = registeredStudents.find(
+      s => s.matricNumber === student.matricNumber
+    );
 
-      // TODO: Replace with actual fingerprint scanner SDK
-      const capturedTemplate = 'FINGERPRINT_TEMPLATE_FROM_SCANNER';
-
-      const result = await adminMarkAttendance(
-        activeSession.$id,
-        sessionType,
-        capturedTemplate
-      );
-
-      setLastResult(result);
-
-      if (result.success) {
-        // Add to log
-        setAttendanceLog(prev => [{
-          timestamp: new Date().toLocaleTimeString(),
-          student: result.student,
-          action: result.action,
-          fingerUsed: result.fingerUsed,
-          message: result.message
-        }, ...prev]);
-
-        // Update session count
-        setActiveSession(prev => ({
-          ...prev,
-          totalStudentsMarked: prev.totalStudentsMarked + 1
-        }));
-
-        // Auto-clear success message after 3 seconds
-        setTimeout(() => {
-          if (result.success) {
-            setLastResult(null);
-          }
-        }, 3000);
-      }
-
-    } catch (error) {
-      console.error('Error scanning fingerprint:', error);
+    if (!isRegistered) {
       setLastResult({
         success: false,
-        error: error.message || 'Failed to scan fingerprint'
+        error: `${student.firstName} ${student.surname} (${student.matricNumber}) is not registered for ${activeSession.courseCode}`
       });
-    } finally {
-      setIsScanning(false);
+      return;
     }
-  };
+
+    // Mark attendance in database
+    const markResult = await markAttendanceInSession(
+      activeSession.$id,
+      student,
+      sessionType,
+      verifyResult.fingerUsed
+    );
+
+    if (markResult.success) {
+      setLastResult({
+        success: true,
+        student: student,
+        action: sessionType,
+        fingerUsed: verifyResult.fingerUsed,
+        message: `${student.firstName} ${student.surname} ${sessionType === 'signin' ? 'signed in' : 'signed out'} successfully`
+      });
+
+      // Add to log
+      setAttendanceLog(prev => [{
+        timestamp: new Date().toLocaleTimeString(),
+        student: student,
+        action: sessionType,
+        fingerUsed: verifyResult.fingerUsed,
+        message: `${sessionType === 'signin' ? 'Signed In' : 'Signed Out'} - ${verifyResult.fingerUsed} finger`
+      }, ...prev]);
+
+      // Update session count
+      setActiveSession(prev => ({
+        ...prev,
+        totalStudentsMarked: prev.totalStudentsMarked + 1
+      }));
+
+      // Auto-clear after 3 seconds
+      setTimeout(() => setLastResult(null), 3000);
+
+    } else {
+      setLastResult({
+        success: false,
+        error: markResult.error
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Fingerprint scan error:', error);
+    setLastResult({
+      success: false,
+      error: error.message || 'Failed to scan fingerprint'
+    });
+  } finally {
+    setIsScanning(false);
+    await fingerprintScanner.stop();
+  }
+};
+
+// Helper function to mark attendance in database
+const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => {
+  try {
+    const timestamp = new Date().toISOString();
+    const date = timestamp.split('T')[0];
+
+    // Check if attendance record exists for this student today
+    const existingRecords = await databases.listDocuments(
+      config.databaseId,
+      'attendance',
+      [
+        Query.equal('sessionId', sessionId),
+        Query.equal('matricNumber', student.matricNumber),
+        Query.equal('date', date)
+      ]
+    );
+
+    if (existingRecords.documents.length > 0) {
+      const record = existingRecords.documents[0];
+      
+      // Update existing record
+      if (type === 'signin' && record.signInTime) {
+        return {
+          success: false,
+          error: 'Student already signed in'
+        };
+      }
+
+      if (type === 'signout' && record.signOutTime) {
+        return {
+          success: false,
+          error: 'Student already signed out'
+        };
+      }
+
+      // Update record
+      await databases.updateDocument(
+        config.databaseId,
+        'attendance',
+        record.$id,
+        type === 'signin' 
+          ? { signInTime: timestamp, signInFinger: fingerUsed }
+          : { signOutTime: timestamp, signOutFinger: fingerUsed }
+      );
+
+    } else {
+      // Create new record
+      await databases.createDocument(
+        config.databaseId,
+        'attendance',
+        ID.unique(),
+        {
+          sessionId: sessionId,
+          studentId: student.$id,
+          matricNumber: student.matricNumber,
+          courseCode: activeSession.courseCode,
+          date: date,
+          signInTime: type === 'signin' ? timestamp : '',
+          signOutTime: type === 'signout' ? timestamp : '',
+          signInFinger: type === 'signin' ? fingerUsed : '',
+          signOutFinger: type === 'signout' ? fingerUsed : '',
+          attended: true,
+          isActive: true
+        }
+      );
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Error marking attendance:', error);
+    return { success: false, error: error.message };
+  }
+};
 
   const handleCloseSession = async () => {
     if (!activeSession) return;
