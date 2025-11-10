@@ -537,69 +537,92 @@ export default function ExamVerificationInterface() {
     return canvas.toDataURL('image/jpeg', 0.95);
   };
 
-  const handleFaceVerification = async () => {
-    if (!cameraActive) {
-      await startCamera();
-      return;
+ const handleFaceVerification = async () => {
+  if (!cameraActive) {
+    await startCamera();
+    return;
+  }
+
+  setIsScanning(true);
+  setVerificationResult(null);
+  setScanProgress(0);
+  setErrorMessage('');
+
+  try {
+    setScanProgress(20);
+    const capturedImageBase64 = captureFaceImage();
+    
+    if (!capturedImageBase64) {
+      throw new Error('Failed to capture image');
     }
 
-    setIsScanning(true);
-    setVerificationResult(null);
-    setScanProgress(0);
-    setErrorMessage('');
+    setScanProgress(40);
+    console.log('📸 Image captured, sending to API...');
 
+    // Make the request
+    const response = await fetch('/api/verify-face-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capturedImageBase64: capturedImageBase64 })
+    });
+
+    // ✅ CHECK RESPONSE FIRST before parsing JSON
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response ok?', response.ok);
+
+    // Get the raw text first
+    const responseText = await response.text();
+    console.log('📥 Raw response:', responseText);
+
+    // Check if we got an empty response
+    if (!responseText || responseText.trim() === '') {
+      throw new Error('API returned empty response. Check server logs.');
+    }
+
+    // Try to parse JSON
+    let result;
     try {
-      setScanProgress(20);
-      const capturedImageBase64 = captureFaceImage();
-      
-      if (!capturedImageBase64) {
-        throw new Error('Failed to capture image');
-      }
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ Failed to parse JSON:', parseError);
+      console.error('❌ Response was:', responseText);
+      throw new Error(`Invalid response from server: ${responseText.substring(0, 100)}`);
+    }
 
-      setScanProgress(40);
-      console.log('📸 Image captured, searching for match...');
+    setScanProgress(100);
+    console.log('🔍 Search result:', result);
 
-      // const result = await searchStudentByFace(capturedImageBase64);
-      const response = await fetch('/api/verify-face-search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ capturedImageBase64: imageBase64 })
+    if (result.success && result.matched) {
+      setVerificationResult({
+        success: true,
+        student: result.student,
+        confidence: result.confidence,
+        matchTime: result.matchTime,
+        verificationType: 'Face Recognition',
+        allMatches: result.allMatches
       });
-      const result = await response.json();
-      setScanProgress(100);
-      console.log('🔍 Search result:', result);
-
-      if (result.success && result.matched) {
-        setVerificationResult({
-          success: true,
-          student: result.student,
-          confidence: result.confidence,
-          matchTime: result.matchTime,
-          verificationType: 'Face Recognition',
-          allMatches: result.allMatches
-        });
-        stopCamera();
-      } else {
-        setVerificationResult({
-          success: false,
-          message: result.message || 'No matching student found',
-          confidence: result.confidence || 0,
-          error: result.error
-        });
-      }
-    } catch (err) {
-      console.error('Face verification error:', err);
-      setErrorMessage(err.message);
+      stopCamera();
+    } else {
       setVerificationResult({
         success: false,
-        message: err.message || 'Verification failed',
-        confidence: 0
+        message: result.message || 'No matching student found',
+        confidence: result.confidence || 0,
+        error: result.error
       });
-    } finally {
-      setIsScanning(false);
-      setScanProgress(0);
     }
-  };
+  } catch (err) {
+    console.error('❌ Face verification error:', err);
+    setErrorMessage(err.message);
+    setVerificationResult({
+      success: false,
+      message: err.message || 'Verification failed',
+      confidence: 0
+    });
+  } finally {
+    setIsScanning(false);
+    setScanProgress(0);
+  }
+};
 
  const handleFingerprintVerification = async () => {
   setIsScanning(true);

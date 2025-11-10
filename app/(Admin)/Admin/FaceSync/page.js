@@ -8,18 +8,42 @@ export default function FacesetSyncPage() {
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState('');
 
+  // const handleSync = async () => {
+  //   setSyncing(true);
+  //   setResult(null);
+  //   setProgress('Starting sync...');
+
+  //   try {
+  //     setProgress('Creating/checking faceset...');
+  //     const syncResult = await syncStudentFacesToFacePlusPlus();
+      
+  //     setResult(syncResult);
+  //     setProgress('Sync complete!');
+  //   } catch (error) {
+  //     setResult({
+  //       success: false,
+  //       error: error.message
+  //     });
+  //     setProgress('Sync failed');
+  //   } finally {
+  //     setSyncing(false);
+  //   }
+  // };
+
   const handleSync = async () => {
-    setSyncing(true);
+  setSyncing(true);
     setResult(null);
     setProgress('Starting sync...');
-
-    try {
-      setProgress('Creating/checking faceset...');
-      const syncResult = await syncStudentFacesToFacePlusPlus();
-      
-      setResult(syncResult);
-      setProgress('Sync complete!');
-    } catch (error) {
+  try {
+    setProgress('Creating/checking faceset...');
+    const response = await fetch('/api/sync-faces', {
+      method: 'POST'
+    });
+    const syncResult = await response.json();
+    setResult(syncResult);
+    setProgress('Sync complete!');
+    
+  } catch (error) {
       setResult({
         success: false,
         error: error.message
@@ -28,7 +52,7 @@ export default function FacesetSyncPage() {
     } finally {
       setSyncing(false);
     }
-  };
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
