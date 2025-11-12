@@ -1,3 +1,327 @@
+// "use client"
+// import { useState, useEffect } from 'react';
+// import { useRouter } from 'next/navigation';
+// import { 
+//   getCoursesWithRegisteredStudents,
+//   createAttendanceSession,
+//   adminMarkAttendance,
+//   closeAttendanceSession,
+//   getSessionAttendanceReport
+// } from '@/lib/appwrite';
+// import fingerprintScanner from '@/lib/fingerprint-webauthn';
+// import { verifyStudentFingerprint } from '@/lib/appwrite';
+
+// export default function AdminAttendanceInterface() {
+//   const router = useRouter();
+//   const [courses, setCourses] = useState([]);
+//   const [selectedCourse, setSelectedCourse] = useState(null);
+//   const [sessionType, setSessionType] = useState('signin');
+//   const [activeSession, setActiveSession] = useState(null);
+//   const [isScanning, setIsScanning] = useState(false);
+//   const [lastResult, setLastResult] = useState(null);
+//   const [attendanceLog, setAttendanceLog] = useState([]);
+//   const [sessionReport, setSessionReport] = useState(null);
+//   const [isLoading, setIsLoading] = useState(true);
+
+//   useEffect(() => {
+//     loadCourses();
+//   }, []);
+
+//   const loadCourses = async () => {
+//     try {
+//       console.log('Loading courses for attendance...');
+//       const result = await getCoursesWithRegisteredStudents();
+      
+//       if (result.success) {
+//         console.log('Courses loaded:', result.data.length);
+//         setCourses(result.data);
+        
+//         if (result.data.length === 0) {
+//           setLastResult({
+//             success: false,
+//             error: 'No courses with approved registrations found. Please ensure students have registered and their registrations are approved.'
+//           });
+//         }
+//       } else {
+//         setLastResult({
+//           success: false,
+//           error: result.error || 'Failed to load courses'
+//         });
+//       }
+//     } catch (error) {
+//       console.error('Error loading courses:', error);
+//       setLastResult({
+//         success: false,
+//         error: 'Failed to load courses. Please try refreshing the page.'
+//       });
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   const handleStartSession = async () => {
+//     if (!selectedCourse) {
+//       alert('Please select a course first');
+//       return;
+//     }
+
+//     try {
+//       const result = await createAttendanceSession(
+//         selectedCourse.courseCode,
+//         selectedCourse.courseTitle,
+//         sessionType
+//       );
+
+//       if (result.success) {
+//         setActiveSession(result.data);
+//         setAttendanceLog([]);
+//         setLastResult({
+//           success: true,
+//           message: `${sessionType === 'signin' ? 'Sign-in' : 'Sign-out'} session started for ${selectedCourse.courseCode}`
+//         });
+//       } else {
+//         setLastResult({
+//           success: false,
+//           error: result.error
+//         });
+//       }
+//     } catch (error) {
+//       setLastResult({
+//         success: false,
+//         error: error.message
+//       });
+//     }
+//   };
+
+//  const handleScanFingerprint = async () => {
+//   if (!activeSession) {
+//     alert('Please start a session first');
+//     return;
+//   }
+
+//   setIsScanning(true);
+//   setLastResult(null);
+
+//   try {
+//     const scanPrompt = sessionType === 'signin' 
+//       ? 'Student: Please place your finger on the scanner for SIGN IN...'
+//       : 'Student: Please place your finger on the scanner for SIGN OUT...';
+    
+//     alert(scanPrompt);
+
+//     // Initialize scanner
+//     console.log('🔧 Initializing scanner...');
+//     const initResult = await fingerprintScanner.initialize();
+    
+//     if (!initResult.success) {
+//       throw new Error('Scanner not available. Please ensure DigitalPersona software is installed.');
+//     }
+
+//     // Capture fingerprint
+//     console.log('👆 Waiting for fingerprint...');
+//     const captureResult = await fingerprintScanner.capture();
+    
+//     if (!captureResult.success) {
+//       throw new Error(captureResult.error);
+//     }
+
+//     console.log('✅ Fingerprint captured, verifying...');
+
+//     // Verify fingerprint and get student
+//     const verifyResult = await verifyStudentFingerprint(captureResult.template);
+
+//     if (!verifyResult.success || !verifyResult.matched) {
+//       setLastResult({
+//         success: false,
+//         error: verifyResult.message || 'No matching student found'
+//       });
+//       return;
+//     }
+
+//     const student = verifyResult.student;
+
+//     // Check if student is registered for this course
+//     const isRegistered = registeredStudents.find(
+//       s => s.matricNumber === student.matricNumber
+//     );
+
+//     if (!isRegistered) {
+//       setLastResult({
+//         success: false,
+//         error: `${student.firstName} ${student.surname} (${student.matricNumber}) is not registered for ${activeSession.courseCode}`
+//       });
+//       return;
+//     }
+
+//     // Mark attendance in database
+//     const markResult = await markAttendanceInSession(
+//       activeSession.$id,
+//       student,
+//       sessionType,
+//       verifyResult.fingerUsed
+//     );
+
+//     if (markResult.success) {
+//       setLastResult({
+//         success: true,
+//         student: student,
+//         action: sessionType,
+//         fingerUsed: verifyResult.fingerUsed,
+//         message: `${student.firstName} ${student.surname} ${sessionType === 'signin' ? 'signed in' : 'signed out'} successfully`
+//       });
+
+//       // Add to log
+//       setAttendanceLog(prev => [{
+//         timestamp: new Date().toLocaleTimeString(),
+//         student: student,
+//         action: sessionType,
+//         fingerUsed: verifyResult.fingerUsed,
+//         message: `${sessionType === 'signin' ? 'Signed In' : 'Signed Out'} - ${verifyResult.fingerUsed} finger`
+//       }, ...prev]);
+
+//       // Update session count
+//       setActiveSession(prev => ({
+//         ...prev,
+//         totalStudentsMarked: prev.totalStudentsMarked + 1
+//       }));
+
+//       // Auto-clear after 3 seconds
+//       setTimeout(() => setLastResult(null), 3000);
+
+//     } else {
+//       setLastResult({
+//         success: false,
+//         error: markResult.error
+//       });
+//     }
+
+//   } catch (error) {
+//     console.error('❌ Fingerprint scan error:', error);
+//     setLastResult({
+//       success: false,
+//       error: error.message || 'Failed to scan fingerprint'
+//     });
+//   } finally {
+//     setIsScanning(false);
+//     await fingerprintScanner.stop();
+//   }
+// };
+
+// // Helper function to mark attendance in database
+// const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => {
+//   try {
+//     const timestamp = new Date().toISOString();
+//     const date = timestamp.split('T')[0];
+
+//     // Check if attendance record exists for this student today
+//     const existingRecords = await databases.listDocuments(
+//       config.databaseId,
+//       'attendance',
+//       [
+//         Query.equal('sessionId', sessionId),
+//         Query.equal('matricNumber', student.matricNumber),
+//         Query.equal('date', date)
+//       ]
+//     );
+
+//     if (existingRecords.documents.length > 0) {
+//       const record = existingRecords.documents[0];
+      
+//       // Update existing record
+//       if (type === 'signin' && record.signInTime) {
+//         return {
+//           success: false,
+//           error: 'Student already signed in'
+//         };
+//       }
+
+//       if (type === 'signout' && record.signOutTime) {
+//         return {
+//           success: false,
+//           error: 'Student already signed out'
+//         };
+//       }
+
+//       // Update record
+//       await databases.updateDocument(
+//         config.databaseId,
+//         'attendance',
+//         record.$id,
+//         type === 'signin' 
+//           ? { signInTime: timestamp, signInFinger: fingerUsed }
+//           : { signOutTime: timestamp, signOutFinger: fingerUsed }
+//       );
+
+//     } else {
+//       // Create new record
+//       await databases.createDocument(
+//         config.databaseId,
+//         'attendance',
+//         ID.unique(),
+//         {
+//           sessionId: sessionId,
+//           studentId: student.$id,
+//           matricNumber: student.matricNumber,
+//           courseCode: activeSession.courseCode,
+//           date: date,
+//           signInTime: type === 'signin' ? timestamp : '',
+//           signOutTime: type === 'signout' ? timestamp : '',
+//           signInFinger: type === 'signin' ? fingerUsed : '',
+//           signOutFinger: type === 'signout' ? fingerUsed : '',
+//           attended: true,
+//           isActive: true
+//         }
+//       );
+//     }
+
+//     return { success: true };
+
+//   } catch (error) {
+//     console.error('Error marking attendance:', error);
+//     return { success: false, error: error.message };
+//   }
+// };
+
+//   const handleCloseSession = async () => {
+//     if (!activeSession) return;
+
+//     if (!confirm('Are you sure you want to close this session?')) {
+//       return;
+//     }
+
+//     try {
+//       const result = await closeAttendanceSession(activeSession.$id);
+      
+//       if (result.success) {
+//         // Load final report
+//         const reportResult = await getSessionAttendanceReport(activeSession.$id);
+//         if (reportResult.success) {
+//           setSessionReport(reportResult);
+//         }
+        
+//         setActiveSession(null);
+//         setLastResult({
+//           success: true,
+//           message: 'Session closed successfully'
+//         });
+//       }
+//     } catch (error) {
+//       setLastResult({
+//         success: false,
+//         error: error.message
+//       });
+//     }
+//   };
+
+//   const handleNewSession = () => {
+//     setActiveSession(null);
+//     setSelectedCourse(null);
+//     setSessionType('signin');
+//     setAttendanceLog([]);
+//     setLastResult(null);
+//     setSessionReport(null);
+//   };
+
 "use client"
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,10 +330,13 @@ import {
   createAttendanceSession,
   adminMarkAttendance,
   closeAttendanceSession,
-  getSessionAttendanceReport
+  getSessionAttendanceReport,
+  getStudentsForCourse
 } from '@/lib/appwrite';
 import fingerprintScanner from '@/lib/fingerprint-webauthn';
 import { verifyStudentFingerprint } from '@/lib/appwrite';
+import { databases, config } from '@/lib/appwrite'; // ADD THIS IMPORT
+import { Query, ID } from 'appwrite'; // ADD THIS IMPORT
 
 export default function AdminAttendanceInterface() {
   const router = useRouter();
@@ -22,10 +349,18 @@ export default function AdminAttendanceInterface() {
   const [attendanceLog, setAttendanceLog] = useState([]);
   const [sessionReport, setSessionReport] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [registeredStudents, setRegisteredStudents] = useState([]); // ADD THIS STATE
 
   useEffect(() => {
     loadCourses();
   }, []);
+
+  // ADD THIS: Load students when course is selected
+  useEffect(() => {
+    if (selectedCourse) {
+      loadRegisteredStudents();
+    }
+  }, [selectedCourse]);
 
   const loadCourses = async () => {
     try {
@@ -59,6 +394,27 @@ export default function AdminAttendanceInterface() {
     }
   };
 
+  // ADD THIS FUNCTION
+  const loadRegisteredStudents = async () => {
+    if (!selectedCourse) return;
+    
+    try {
+      console.log('Loading registered students for:', selectedCourse.courseCode);
+      const result = await getStudentsForCourse(selectedCourse.courseCode);
+      
+      if (result.success) {
+        console.log('Registered students loaded:', result.data.length);
+        setRegisteredStudents(result.data);
+      } else {
+        console.error('Failed to load students:', result.error);
+        setRegisteredStudents([]);
+      }
+    } catch (error) {
+      console.error('Error loading registered students:', error);
+      setRegisteredStudents([]);
+    }
+  };
+
   const handleStartSession = async () => {
     if (!selectedCourse) {
       alert('Please select a course first');
@@ -75,6 +431,10 @@ export default function AdminAttendanceInterface() {
       if (result.success) {
         setActiveSession(result.data);
         setAttendanceLog([]);
+        
+        // Load registered students for this session
+        await loadRegisteredStudents();
+        
         setLastResult({
           success: true,
           message: `${sessionType === 'signin' ? 'Sign-in' : 'Sign-out'} session started for ${selectedCourse.courseCode}`
@@ -93,194 +453,194 @@ export default function AdminAttendanceInterface() {
     }
   };
 
- const handleScanFingerprint = async () => {
-  if (!activeSession) {
-    alert('Please start a session first');
-    return;
-  }
-
-  setIsScanning(true);
-  setLastResult(null);
-
-  try {
-    const scanPrompt = sessionType === 'signin' 
-      ? 'Student: Please place your finger on the scanner for SIGN IN...'
-      : 'Student: Please place your finger on the scanner for SIGN OUT...';
-    
-    alert(scanPrompt);
-
-    // Initialize scanner
-    console.log('🔧 Initializing scanner...');
-    const initResult = await fingerprintScanner.initialize();
-    
-    if (!initResult.success) {
-      throw new Error('Scanner not available. Please ensure DigitalPersona software is installed.');
-    }
-
-    // Capture fingerprint
-    console.log('👆 Waiting for fingerprint...');
-    const captureResult = await fingerprintScanner.capture();
-    
-    if (!captureResult.success) {
-      throw new Error(captureResult.error);
-    }
-
-    console.log('✅ Fingerprint captured, verifying...');
-
-    // Verify fingerprint and get student
-    const verifyResult = await verifyStudentFingerprint(captureResult.template);
-
-    if (!verifyResult.success || !verifyResult.matched) {
-      setLastResult({
-        success: false,
-        error: verifyResult.message || 'No matching student found'
-      });
+  const handleScanFingerprint = async () => {
+    if (!activeSession) {
+      alert('Please start a session first');
       return;
     }
 
-    const student = verifyResult.student;
-
-    // Check if student is registered for this course
-    const isRegistered = registeredStudents.find(
-      s => s.matricNumber === student.matricNumber
-    );
-
-    if (!isRegistered) {
-      setLastResult({
-        success: false,
-        error: `${student.firstName} ${student.surname} (${student.matricNumber}) is not registered for ${activeSession.courseCode}`
-      });
+    if (registeredStudents.length === 0) {
+      alert('No registered students found for this course');
       return;
     }
 
-    // Mark attendance in database
-    const markResult = await markAttendanceInSession(
-      activeSession.$id,
-      student,
-      sessionType,
-      verifyResult.fingerUsed
-    );
+    setIsScanning(true);
+    setLastResult(null);
 
-    if (markResult.success) {
-      setLastResult({
-        success: true,
-        student: student,
-        action: sessionType,
-        fingerUsed: verifyResult.fingerUsed,
-        message: `${student.firstName} ${student.surname} ${sessionType === 'signin' ? 'signed in' : 'signed out'} successfully`
-      });
-
-      // Add to log
-      setAttendanceLog(prev => [{
-        timestamp: new Date().toLocaleTimeString(),
-        student: student,
-        action: sessionType,
-        fingerUsed: verifyResult.fingerUsed,
-        message: `${sessionType === 'signin' ? 'Signed In' : 'Signed Out'} - ${verifyResult.fingerUsed} finger`
-      }, ...prev]);
-
-      // Update session count
-      setActiveSession(prev => ({
-        ...prev,
-        totalStudentsMarked: prev.totalStudentsMarked + 1
-      }));
-
-      // Auto-clear after 3 seconds
-      setTimeout(() => setLastResult(null), 3000);
-
-    } else {
-      setLastResult({
-        success: false,
-        error: markResult.error
-      });
-    }
-
-  } catch (error) {
-    console.error('❌ Fingerprint scan error:', error);
-    setLastResult({
-      success: false,
-      error: error.message || 'Failed to scan fingerprint'
-    });
-  } finally {
-    setIsScanning(false);
-    await fingerprintScanner.stop();
-  }
-};
-
-// Helper function to mark attendance in database
-const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => {
-  try {
-    const timestamp = new Date().toISOString();
-    const date = timestamp.split('T')[0];
-
-    // Check if attendance record exists for this student today
-    const existingRecords = await databases.listDocuments(
-      config.databaseId,
-      'attendance',
-      [
-        Query.equal('sessionId', sessionId),
-        Query.equal('matricNumber', student.matricNumber),
-        Query.equal('date', date)
-      ]
-    );
-
-    if (existingRecords.documents.length > 0) {
-      const record = existingRecords.documents[0];
+    try {
+      const scanPrompt = sessionType === 'signin' 
+        ? 'Student: Please place your finger on the scanner for SIGN IN...'
+        : 'Student: Please place your finger on the scanner for SIGN OUT...';
       
-      // Update existing record
-      if (type === 'signin' && record.signInTime) {
-        return {
-          success: false,
-          error: 'Student already signed in'
-        };
+      alert(scanPrompt);
+
+      // Initialize scanner
+      console.log('🔧 Initializing scanner...');
+      const initResult = await fingerprintScanner.initialize();
+      
+      if (!initResult.success) {
+        throw new Error('Scanner not available. Please ensure Windows Hello is enabled.');
       }
 
-      if (type === 'signout' && record.signOutTime) {
-        return {
+      console.log('👆 Waiting for fingerprint...');
+
+      // Verify fingerprint and get student
+      const verifyResult = await verifyStudentFingerprint();
+
+      if (!verifyResult.success || !verifyResult.matched) {
+        setLastResult({
           success: false,
-          error: 'Student already signed out'
-        };
+          error: verifyResult.message || 'No matching student found'
+        });
+        return;
       }
 
-      // Update record
-      await databases.updateDocument(
-        config.databaseId,
-        'attendance',
-        record.$id,
-        type === 'signin' 
-          ? { signInTime: timestamp, signInFinger: fingerUsed }
-          : { signOutTime: timestamp, signOutFinger: fingerUsed }
+      const student = verifyResult.student;
+
+      // Check if student is registered for this course
+      const isRegistered = registeredStudents.find(
+        s => s.matricNumber === student.matricNumber
       );
 
-    } else {
-      // Create new record
-      await databases.createDocument(
-        config.databaseId,
-        'attendance',
-        ID.unique(),
-        {
-          sessionId: sessionId,
-          studentId: student.$id,
-          matricNumber: student.matricNumber,
-          courseCode: activeSession.courseCode,
-          date: date,
-          signInTime: type === 'signin' ? timestamp : '',
-          signOutTime: type === 'signout' ? timestamp : '',
-          signInFinger: type === 'signin' ? fingerUsed : '',
-          signOutFinger: type === 'signout' ? fingerUsed : '',
-          attended: true,
-          isActive: true
-        }
+      if (!isRegistered) {
+        setLastResult({
+          success: false,
+          error: `${student.firstName} ${student.surname} (${student.matricNumber}) is not registered for ${activeSession.courseCode}`
+        });
+        return;
+      }
+
+      // Mark attendance in database
+      const markResult = await markAttendanceInSession(
+        activeSession.$id,
+        student,
+        sessionType,
+        verifyResult.fingerUsed
       );
+
+      if (markResult.success) {
+        setLastResult({
+          success: true,
+          student: student,
+          action: sessionType,
+          fingerUsed: verifyResult.fingerUsed,
+          message: `${student.firstName} ${student.surname} ${sessionType === 'signin' ? 'signed in' : 'signed out'} successfully`
+        });
+
+        // Add to log
+        setAttendanceLog(prev => [{
+          timestamp: new Date().toLocaleTimeString(),
+          student: student,
+          action: sessionType,
+          fingerUsed: verifyResult.fingerUsed,
+          message: `${sessionType === 'signin' ? 'Signed In' : 'Signed Out'} - ${verifyResult.fingerUsed} finger`
+        }, ...prev]);
+
+        // Update session count
+        setActiveSession(prev => ({
+          ...prev,
+          totalStudentsMarked: prev.totalStudentsMarked + 1
+        }));
+
+        // Auto-clear after 3 seconds
+        setTimeout(() => setLastResult(null), 3000);
+
+      } else {
+        setLastResult({
+          success: false,
+          error: markResult.error
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Fingerprint scan error:', error);
+      setLastResult({
+        success: false,
+        error: error.message || 'Failed to scan fingerprint'
+      });
+    } finally {
+      setIsScanning(false);
+      await fingerprintScanner.stop();
     }
+  };
 
-    return { success: true };
+  // Helper function to mark attendance in database
+  const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => {
+    try {
+      const timestamp = new Date().toISOString();
+      const date = timestamp.split('T')[0];
 
-  } catch (error) {
-    console.error('Error marking attendance:', error);
-    return { success: false, error: error.message };
-  }
-};
+      // Check if attendance record exists for this student today
+      const existingRecords = await databases.listDocuments(
+        config.databaseId,
+        config.attendanceCollectionId,
+        [
+          Query.equal('sessionId', sessionId),
+          Query.equal('matricNumber', student.matricNumber),
+          Query.equal('attendanceDate', date)
+        ]
+      );
+
+      if (existingRecords.documents.length > 0) {
+        const record = existingRecords.documents[0];
+        
+        // Update existing record
+        if (type === 'signin' && record.signInTime) {
+          return {
+            success: false,
+            error: 'Student already signed in'
+          };
+        }
+
+        if (type === 'signout' && record.signOutTime) {
+          return {
+            success: false,
+            error: 'Student already signed out'
+          };
+        }
+
+        // Update record
+        await databases.updateDocument(
+          config.databaseId,
+          config.attendanceCollectionId,
+          record.$id,
+          type === 'signin' 
+            ? { signInTime: timestamp, signInFingerUsed: fingerUsed }
+            : { signOutTime: timestamp, signOutFingerUsed: fingerUsed }
+        );
+
+      } else {
+        // Create new record
+        await databases.createDocument(
+          config.databaseId,
+          config.attendanceCollectionId,
+          ID.unique(),
+          {
+            sessionId: sessionId,
+            studentId: student.$id,
+            matricNumber: student.matricNumber,
+            courseCode: activeSession.courseCode,
+            courseTitle: activeSession.courseTitle,
+            attendanceDate: date,
+            signInTime: type === 'signin' ? timestamp : null,
+            signOutTime: type === 'signout' ? timestamp : null,
+            signInFingerUsed: type === 'signin' ? fingerUsed : '',
+            signOutFingerUsed: type === 'signout' ? fingerUsed : '',
+            attended: true,
+            isActive: true,
+            semester: activeSession.semester,
+            academicYear: activeSession.academicYear
+          }
+        );
+      }
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('Error marking attendance:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
   const handleCloseSession = async () => {
     if (!activeSession) return;
@@ -300,6 +660,7 @@ const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => 
         }
         
         setActiveSession(null);
+        setRegisteredStudents([]);
         setLastResult({
           success: true,
           message: 'Session closed successfully'
@@ -320,6 +681,7 @@ const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => 
     setAttendanceLog([]);
     setLastResult(null);
     setSessionReport(null);
+    setRegisteredStudents([]);
   };
 
   if (isLoading) {
@@ -350,9 +712,15 @@ const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => 
             </svg>
             <span>Mark Attendance</span>
           </h1>
-          <p className="text-gray-600 mt-2">Invigilator attendance marking system</p>
-        </div>
-
+          <p className="text-gray-600 mt-2">
+            Invigilator attendance marking system
+            {activeSession && registeredStudents.length > 0 && (
+              <span className="ml-2 text-sm text-indigo-600 font-semibold">
+                • {registeredStudents.length} registered students
+              </span>
+            )}
+          </p>
+          </div>
         {sessionReport ? (
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-6">
