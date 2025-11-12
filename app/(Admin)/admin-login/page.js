@@ -166,7 +166,8 @@ import { MdLogin, MdEmail, MdLock, MdVisibility, MdVisibilityOff } from 'react-i
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { adminLogin } from '@/lib/appwrite';
+// import { adminLogin } from '@/lib/appwrite';
+import { login } from '@/lib/appwrite';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -193,7 +194,7 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await adminLogin(formData.email, formData.password);
+      const response = await login(formData.email, formData.password);
       
       if (response.success) {
         setSuccess(true);
