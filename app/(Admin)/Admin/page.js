@@ -3,10 +3,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   logOut, 
-  getCurrentUser, 
+  // getCurrentUser,
+  // getCurrentAdmin, 
   getDashboardStats, 
-  getRecentActivity 
+  getRecentActivity,
+  // adminLogout
 } from '@/lib/appwrite';
+import { useAuth } from '@/lib/useAuth';
 
 export default function AdminDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -14,10 +17,9 @@ export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [activityLoading, setActivityLoading] = useState(true);
-  
+  // const [adminUser, setAdminUser] = useState(null);
   // Real data states
   const [dashboardStats, setDashboardStats] = useState({
     totalStudents: 0,
@@ -28,25 +30,63 @@ export default function AdminDashboard() {
   const [recentActivities, setRecentActivities] = useState([]);
 
   const router = useRouter();
-
+const { user, loading, isAuthenticated, checkAuth, logout } = useAuth();
   // Check authentication on mount
+  // useEffect(() => {
+  //   const checkAuth = async () => {
+  //     try {
+  //       const user = await getCurrentUser();
+  //       if (!user) {
+  //         router.push('/admin-login');
+  //         return;
+  //       }
+  //       setLoading(false);
+  //     } catch (error) {
+  //       console.error('Auth check error:', error);
+  //       router.push('/admin-login');
+  //     }
+  //   };
+
+  //   checkAuth();
+  // }, [router]);
+
+  // ✅ Replace the authentication check
+// useEffect(() => {
+//   const checkAuth = async () => {
+//     try {
+//       const result = await getCurrentAdmin();
+      
+//       if (!result.success || !result.user) {
+//         console.log('No active session, redirecting to login');
+//         router.replace('/admin-login');
+//         return;
+//       }
+
+//       console.log('Admin authenticated:', result.user);
+//       setAdminUser(result.user);
+//       setLoading(false);
+//     } catch (error) {
+//       console.error('Auth check error:', error);
+//       router.replace('/admin-login');
+//     }
+//   };
+
+//   checkAuth();
+// }, [router]);
+
+// ✅ IMPROVED: Single auth check with caching
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = await getCurrentUser();
-        if (!user) {
-          router.push('/admin-login');
-          return;
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error('Auth check error:', error);
-        router.push('/admin-login');
+    const verifyAuth = async () => {
+      const result = await checkAuth();
+      
+      if (!result.success || !result.user) {
+        console.log('No active session, redirecting to login');
+        router.replace('/admin-login');
       }
     };
 
-    checkAuth();
-  }, [router]);
+    verifyAuth();
+  }, [checkAuth, router]);
 
   // Fetch dashboard statistics
   useEffect(() => {
@@ -189,16 +229,16 @@ export default function AdminDashboard() {
       ),
       link: '/Admin/AttendanceReports'
     },
-    {
-      id: 'faceSync',
-      title: 'Sync Faces',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      ),
-      link: '/Admin/FaceSync'
-    },
+    // {
+    //   id: 'faceSync',
+    //   title: 'Sync Faces',
+    //   icon: (
+    //     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    //     </svg>
+    //   ),
+    //   link: '/Admin/FaceSync'
+    // },
     {
       id: 'exam-sessions',
       title: 'Registered Courses',
@@ -286,25 +326,40 @@ export default function AdminDashboard() {
     router.push(path); 
   };
 
+ 
+// const handleSignOut = async () => {
+//   if (isLoggingOut) return;
+
+//   try {
+//     setIsLoggingOut(true);
+    
+//     const result = await adminLogout();
+    
+//     if (result.success) {
+//       console.log('Logout successful');
+//     }
+    
+//     router.replace('/admin-login');
+    
+//   } catch (error) {
+//     console.error('Logout error:', error);
+//     router.replace('/admin-login');
+//   } finally {
+//     setIsLoggingOut(false);
+//   }
+// };
+
+  // ✅ IMPROVED: Logout with cache clear
   const handleSignOut = async () => {
     if (isLoggingOut) return;
 
     try {
       setIsLoggingOut(true);
-      
-      const user = await getCurrentUser();
-      
-      if (!user) {
-        router.push('/admin-login');
-        return;
-      }
-
-      await logOut();
-      router.push('/admin-login');
-      
+      await logout(); // Uses cached logout
+      router.replace('/admin-login');
     } catch (error) {
       console.error('Logout error:', error);
-      router.push('/admin-login');
+      router.replace('/admin-login');
     } finally {
       setIsLoggingOut(false);
     }
@@ -436,7 +491,10 @@ export default function AdminDashboard() {
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                 <div>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">{greeting}, Admin! 👋</h2>
+                  
+                  <h2 className="text-2xl font-bold">
+                  {greeting}, {user?.username || 'Admin'}! 👋
+                  </h2>
                   <p className="text-indigo-100 text-sm sm:text-base">Biometrics Exam Authentication System </p>
                 </div>
                 <div className="space-y-2">
