@@ -85,9 +85,9 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
 
         <div className="printable-area p-6">
           <div className="text-center mb-6 border-b-2 border-gray-800 pb-4 page-break-inside-avoid">
-            <h1 className="text-xl font-bold text-gray-900 mb-1">FEDERAL POLYTECHNIC ILARO</h1>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">FEDERAL UNIVERSITY OYE EKITI</h1>
             <h3 className="text-base font-semibold text-gray-800">COURSE REGISTRATION FORM</h3>
-            <p className="text-xs text-gray-600 mt-1">2024/2025 Academic Session - First Semester</p>
+            <p className="text-xs text-gray-600 mt-1">2024/2025 Academic Session - {course.semester}</p>
           </div>
 
           <div className="mb-6 page-break-inside-avoid">
@@ -364,7 +364,7 @@ export default function StudentDashboard() {
         studentInfo.matricNumber,
         selectedCourses,
         '2024/2025',
-        'First'
+        course.semester
       );
 
       if (result.success || (result.data && result.data.length > 0)) {
@@ -532,7 +532,7 @@ export default function StudentDashboard() {
                 <p className="text-white text-sm sm:text-base mb-2">{studentInfo.matricNumber} • {studentInfo.department}</p>
                 <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">{studentInfo.level} Level</span>
-                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">2024/2025 First Semester</span>
+                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">2024/2025 {course.semester}</span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     studentInfo.fingerprintsCaptured ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                   }`}>
