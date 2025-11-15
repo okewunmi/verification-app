@@ -23,6 +23,29 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
     window.print();
   };
 
+  // ✅ FIX: Get semester from first registered course or default to current semester
+  const getSemester = () => {
+    if (registeredCourses && registeredCourses.length > 0) {
+      return registeredCourses[0].semester;
+    }
+    // Default to current semester based on date
+    const currentMonth = new Date().getMonth() + 1;
+    return currentMonth >= 1 && currentMonth <= 6 ? 'First' : 'Second';
+  };
+
+  const getCurrentAcademicYear = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentYear = currentDate.getFullYear();
+    
+    return currentMonth >= 9 
+      ? `${currentYear}/${currentYear + 1}` 
+      : `${currentYear - 1}/${currentYear}`;
+  };
+
+  const semester = getSemester();
+  const academicYear = getCurrentAcademicYear();
+
   const qrData = JSON.stringify({
     matricNumber: studentInfo.matricNumber,
     name: `${studentInfo.firstName} ${studentInfo.surname}`,
@@ -30,6 +53,8 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
     department: studentInfo.department,
     totalCourses: registrationStats.totalRegistered,
     totalUnits: registrationStats.totalUnits,
+    semester: semester,
+    academicYear: academicYear,
     courses: registeredCourses.map(c => ({
       code: c.courseCode,
       title: c.courseTitle,
@@ -87,7 +112,7 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
           <div className="text-center mb-6 border-b-2 border-gray-800 pb-4 page-break-inside-avoid">
             <h1 className="text-xl font-bold text-gray-900 mb-1">FEDERAL UNIVERSITY OYE EKITI</h1>
             <h3 className="text-base font-semibold text-gray-800">COURSE REGISTRATION FORM</h3>
-            <p className="text-xs text-gray-600 mt-1">2024/2025 Academic Session - {course.semester}</p>
+            <p className="text-xs text-gray-600 mt-1">{academicYear} Academic Session - {semester} Semester</p>
           </div>
 
           <div className="mb-6 page-break-inside-avoid">
@@ -228,6 +253,31 @@ export default function StudentDashboard() {
   });
 
   const maxUnits = 24;
+// ✅ ADD: Helper function to get current academic year
+  const getCurrentAcademicYear = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentYear = currentDate.getFullYear();
+    
+    return currentMonth >= 9 
+      ? `${currentYear}/${currentYear + 1}` 
+      : `${currentYear - 1}/${currentYear}`;
+  };
+
+  // ✅ ADD: Helper function to get current semester
+  const getCurrentSemester = () => {
+    const currentMonth = new Date().getMonth() + 1;
+    return currentMonth >= 1 && currentMonth <= 6 ? 'First' : 'Second';
+  };
+
+  // ✅ ADD: Function to get semester from registered courses
+  const getStudentSemester = () => {
+    if (registeredCourses && registeredCourses.length > 0) {
+      // Get semester from first registered course
+      return registeredCourses[0].semester || getCurrentSemester();
+    }
+    return getCurrentSemester();
+  };
 
   useEffect(() => {
     const loadStudentData = async () => {
@@ -358,13 +408,15 @@ export default function StudentDashboard() {
 
     try {
       setRegistering(true);
-      
+      // ✅ FIX: Use dynamic semester
+    const currentSemester = getCurrentSemester();
+    const currentAcademicYear = getCurrentAcademicYear();
       const result = await registerStudentCourses(
         studentInfo.$id,
         studentInfo.matricNumber,
         selectedCourses,
-        '2024/2025',
-        course.semester
+        currentAcademicYear,  // Dynamic academic year
+      currentSemester        // Dynamic semester
       );
 
       if (result.success || (result.data && result.data.length > 0)) {
@@ -532,7 +584,9 @@ export default function StudentDashboard() {
                 <p className="text-white text-sm sm:text-base mb-2">{studentInfo.matricNumber} • {studentInfo.department}</p>
                 <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">{studentInfo.level} Level</span>
-                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">2024/2025 {course.semester}</span>
+                  <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+            {getCurrentAcademicYear()} {getCurrentSemester()} Semester
+          </span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     studentInfo.fingerprintsCaptured ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                   }`}>
