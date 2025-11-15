@@ -562,29 +562,29 @@ export async function POST(request) {
             line-height: 1.6; 
             color: #333; 
             max-width: 600px; 
-            margin: 0 auto; 
-            background: #f5f5f5;
+            margin: 5px 0; 
+            background: #ddddddff;
           }
-          .container { background: white; margin: 5px; border-radius: 5px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          .container { background: white; margin: 5px; border-radius: 5px; overflow: hidden; box-shadow: 0 2px 3px rgba(0,0,0,0.1); }
           .header { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
             color: white; 
             padding: 10px; 
             text-align: center; 
           }
-          .header h1 { margin: 0; font-size: 32px; font-weight: 600; }
+          .header h2 { margin: 0; font-size: 22px; font-weight: 600; }
           .header p { margin: 10px 0 0 0; opacity: 0.95; font-size: 16px; }
           .content { padding: 10px; }
           .info-box { 
-            background: #f8f9fa; 
+            background: #e7e8e9ff; 
             padding: 10px; 
             margin: 10px 0; 
             border-radius: 8px; 
             border-left: 4px solid #667eea; 
           }
           .info-box h2 { margin-top: 0; color: #667eea; font-size: 20px; }
-          .info-row { padding: 8px 0; display: flex; }
-          .info-label { font-weight: 600; color: #555; min-width: 140px; }
+          .info-row { padding: 5px 0; display: flex; }
+          .info-label { font-weight: 500; color: #555; min-width: 140px; }
           .info-value { color: #333; }
           .credentials { 
             background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); 
