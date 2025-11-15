@@ -238,20 +238,20 @@ export async function POST(request) {
             margin: 0 auto; 
             background: #f5f5f5;
           }
-          .container { background: white; margin: 20px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          .container { background: white; margin: 5px; border-radius: 5px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
           .header { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
             color: white; 
-            padding: 40px 30px; 
+            padding: 10px; 
             text-align: center; 
           }
           .header h1 { margin: 0; font-size: 32px; font-weight: 600; }
           .header p { margin: 10px 0 0 0; opacity: 0.95; font-size: 16px; }
-          .content { padding: 40px 30px; }
+          .content { padding: 10px; }
           .info-box { 
             background: #f8f9fa; 
-            padding: 25px; 
-            margin: 25px 0; 
+            padding: 10px; 
+            margin: 10px 0; 
             border-radius: 8px; 
             border-left: 4px solid #667eea; 
           }
@@ -261,8 +261,8 @@ export async function POST(request) {
           .info-value { color: #333; }
           .credentials { 
             background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); 
-            padding: 25px; 
-            margin: 25px 0; 
+            padding: 10px; 
+            margin: 10px 0; 
             border-radius: 8px; 
             border: 2px solid #ffc107; 
           }
@@ -283,16 +283,16 @@ export async function POST(request) {
           }
           .warning { 
             background: #fff3f3; 
-            padding: 20px; 
-            margin: 25px 0; 
+            padding: 10px; 
+            margin: 10px 0; 
             border-radius: 8px; 
             border-left: 4px solid #dc3545; 
           }
           .warning h3 { margin-top: 0; color: #dc3545; font-size: 18px; }
           .instructions { 
             background: #e7f3ff; 
-            padding: 25px; 
-            margin: 25px 0; 
+            padding: 10px; 
+            margin: 10px 0; 
             border-radius: 8px; 
             border-left: 4px solid #0066cc;
           }
@@ -306,7 +306,7 @@ export async function POST(request) {
             color: white !important; 
             text-decoration: none; 
             border-radius: 5px; 
-            margin: 20px 0;
+            margin: 10px 0;
             font-weight: 600;
             text-align: center;
           }
@@ -325,8 +325,8 @@ export async function POST(request) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🎓 Welcome to FTP!</h1>
-            <p>Federal Polytechnic Ilaro - Student Portal</p>
+            <h2>🎓 Welcome to FTP!</h2>
+            <p>FEDERAL UNIVERSITY OYE EKITI - Student Portal</p>
           </div>
           
           <div class="content">
@@ -335,7 +335,7 @@ export async function POST(request) {
             <p>Congratulations! Your student account has been successfully created in the FTP Attendance System.</p>
             
             <div class="info-box">
-              <h2>📋 Your Student Information</h2>
+              <h3>📋 Your Student Information</h3>
               <div class="info-row">
                 <span class="info-label">Full Name:</span>
                 <span class="info-value">${studentData.firstName} ${studentData.middleName || ''} ${studentData.surname}</span>
@@ -363,7 +363,7 @@ export async function POST(request) {
             </div>
             
             <div class="credentials">
-              <h2>🔐 Your Login Credentials</h2>
+              <h3>🔐 Your Login Credentials</h3>
               <p>Use these credentials to access the student portal:</p>
               
               <div class="credential-item">
