@@ -15,7 +15,7 @@ import {
 
 import QRCode from 'react-qr-code';
 // ========================================
-// FIXED PRINTABLE RECEIPT COMPONENT
+// SIMPLE FIXED PRINTABLE RECEIPT COMPONENT
 // ========================================
 const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, onClose }) => {
   const handlePrint = () => {
@@ -63,80 +63,57 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto">
-        {/* ✅ COMPLETELY FIXED PRINT STYLES */}
+        {/* ✅ SIMPLE PRINT STYLES - NO HIDING */}
         <style>{`
           @media print {
-            /* Hide the modal overlay and everything outside */
-            body {
-              margin: 0;
-              padding: 0;
+            /* Page setup */
+            @page {
+              size: A4;
+              margin: 15mm;
             }
             
-            /* Hide all body children except our modal */
-            body > *:not(#__next) {
-              display: none !important;
-            }
-            
-            /* For Next.js - hide everything except our modal */
-            #__next > *:not(.print-modal-wrapper) {
-              display: none !important;
-            }
-            
-            /* Show the modal wrapper */
-            .print-modal-wrapper {
-              display: block !important;
-              position: static !important;
-              background: white !important;
-              padding: 0 !important;
-              margin: 0 !important;
-            }
-            
-            /* Reset the modal container for print */
-            .print-modal-container {
-              position: static !important;
-              max-width: 100% !important;
-              max-height: none !important;
-              overflow: visible !important;
-              box-shadow: none !important;
-              border-radius: 0 !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            
-            /* Hide buttons and non-printable elements */
+            /* Hide only the buttons and overlay */
             .no-print {
               display: none !important;
             }
             
-            /* Show and style the printable area */
-            .printable-area {
-              display: block !important;
-              visibility: visible !important;
-              padding: 10mm !important;
-              margin: 0 !important;
+            /* Remove modal styling for print */
+            .fixed {
+              position: static !important;
             }
             
-            /* Ensure all children are visible */
-            .printable-area * {
-              visibility: visible !important;
+            .bg-black {
+              background: transparent !important;
             }
             
-            /* Page setup */
-            @page {
-              size: A4;
-              margin: 10mm;
+            .bg-opacity-50 {
+              background: transparent !important;
             }
             
-            /* Prevent page breaks inside elements */
+            .shadow-2xl {
+              box-shadow: none !important;
+            }
+            
+            .rounded-lg {
+              border-radius: 0 !important;
+            }
+            
+            .max-h-\\[90vh\\] {
+              max-height: none !important;
+            }
+            
+            .overflow-auto {
+              overflow: visible !important;
+            }
+            
+            /* Prevent page breaks */
             .page-break-inside-avoid {
               page-break-inside: avoid !important;
-              break-inside: avoid !important;
             }
             
             /* Table printing */
             table {
               page-break-inside: auto;
-              border-collapse: collapse !important;
             }
             
             tr {
@@ -152,16 +129,10 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
               display: table-footer-group;
             }
             
-            /* Ensure borders are visible */
-            table, th, td {
-              border: 1px solid #9CA3AF !important;
-            }
-            
-            /* Ensure text colors are visible */
+            /* Print colors */
             * {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
-              color-adjust: exact !important;
             }
           }
         `}</style>
@@ -189,7 +160,7 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
         </div>
 
         {/* Printable content */}
-        <div className="printable-area p-6">
+        <div className="p-6">
           {/* Header */}
           <div className="text-center mb-6 border-b-2 border-gray-800 pb-4 page-break-inside-avoid">
             <h1 className="text-xl font-bold text-gray-900 mb-1">FEDERAL UNIVERSITY OYE EKITI</h1>
@@ -1165,16 +1136,12 @@ export default function StudentDashboard() {
         />
       )} */}
 {showPrintReceipt && (
-  <div className="print-modal-wrapper">
-    <div className="print-modal-container">
-      <PrintableReceipt
-        studentInfo={studentInfo}
-        registeredCourses={registeredCourses}
-        registrationStats={registrationStats}
-        onClose={() => setShowPrintReceipt(false)}
-      />
-    </div>
-  </div>
+  <PrintableReceipt
+    studentInfo={studentInfo}
+    registeredCourses={registeredCourses}
+    registrationStats={registrationStats}
+    onClose={() => setShowPrintReceipt(false)}
+  />
 )}
       <style jsx global>{`
         @keyframes slide-in {
