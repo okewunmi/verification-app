@@ -68,23 +68,16 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
       <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto">
         <style>{`
           @media print {
-            // body * { visibility: hidden; }
-            body * { display: none !important }
-            // .printable-area, .printable-area * { visibility: visible; }
-            .printable-area, .printable-area * {display: block !important; }
-            // .printable-area { 
-            //   position: absolute; 
-            //   left: 0; 
-            //   top: 0; 
-            //   width: 100%; 
-            //   padding: 15mm;
-            // }
-            .printable-area {
-    position: static !important;
-    padding: 15mm !important }
-            // .no-print { display: none !important; }
-             .no-print {
-    display: none !important}
+            body * { visibility: hidden; }
+            .printable-area, .printable-area * { visibility: visible; }
+            .printable-area { 
+              position: absolute; 
+              left: 0; 
+              top: 0; 
+              width: 100%; 
+              padding: 15mm;
+            }
+            .no-print { display: none !important; }
             @page { margin: 12mm; size: A4; }
             .page-break-inside-avoid { page-break-inside: avoid; }
             table { page-break-inside: auto; }
