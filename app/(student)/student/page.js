@@ -14,21 +14,18 @@ import {
 } from '@/lib/appwrite';
 
 import QRCode from 'react-qr-code';
-
 // ========================================
-// PRINTABLE RECEIPT COMPONENT
+// FIXED PRINTABLE RECEIPT COMPONENT
 // ========================================
 const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, onClose }) => {
   const handlePrint = () => {
     window.print();
   };
 
-  // ✅ FIX: Get semester from first registered course or default to current semester
   const getSemester = () => {
     if (registeredCourses && registeredCourses.length > 0) {
       return registeredCourses[0].semester;
     }
-    // Default to current semester based on date
     const currentMonth = new Date().getMonth() + 1;
     return currentMonth >= 1 && currentMonth <= 6 ? 'First' : 'Second';
   };
@@ -66,27 +63,95 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto">
+        {/* ✅ FIXED PRINT STYLES */}
         <style>{`
           @media print {
-            body * { visibility: hidden; }
-            .printable-area, .printable-area * { visibility: visible; }
-            .printable-area { 
-              position: absolute; 
-              left: 0; 
-              top: 0; 
-              width: 100%; 
-              padding: 15mm;
+            /* Hide everything on the page */
+            body > *:not(.print-modal) {
+              display: none !important;
             }
-            .no-print { display: none !important; }
-            @page { margin: 12mm; size: A4; }
-            .page-break-inside-avoid { page-break-inside: avoid; }
-            table { page-break-inside: auto; }
-            tr { page-break-inside: avoid; page-break-after: auto; }
-            thead { display: table-header-group; }
-            tfoot { display: table-footer-group; }
+            
+            /* Show only the printable content */
+            .print-modal {
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+              width: 100% !important;
+              height: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+              z-index: 9999 !important;
+            }
+            
+            .print-modal * {
+              visibility: visible !important;
+            }
+            
+            /* Hide the modal overlay and buttons */
+            .no-print {
+              display: none !important;
+            }
+            
+            /* Make printable area fill the page */
+            .printable-area {
+              position: relative !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              padding: 15mm !important;
+              margin: 0 !important;
+            }
+            
+            /* Page setup */
+            @page {
+              size: A4;
+              margin: 12mm;
+            }
+            
+            /* Prevent page breaks inside elements */
+            .page-break-inside-avoid {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            
+            /* Table printing */
+            table {
+              page-break-inside: auto;
+            }
+            
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
+            }
+            
+            thead {
+              display: table-header-group;
+            }
+            
+            tfoot {
+              display: table-footer-group;
+            }
+            
+            /* Remove any shadows, borders from modal */
+            .print-modal > div {
+              box-shadow: none !important;
+              border-radius: 0 !important;
+              max-height: none !important;
+              overflow: visible !important;
+            }
+          }
+          
+          /* Screen styles */
+          @media screen {
+            .print-modal {
+              /* Keep modal styling for screen view */
+            }
           }
         `}</style>
 
+        {/* No-print header with buttons */}
         <div className="no-print sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
           <h3 className="text-lg font-bold text-gray-800">Course Registration Receipt</h3>
           <div className="flex space-x-2">
@@ -108,18 +173,26 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
           </div>
         </div>
 
+        {/* Printable content */}
         <div className="printable-area p-6">
+          {/* Header */}
           <div className="text-center mb-6 border-b-2 border-gray-800 pb-4 page-break-inside-avoid">
             <h1 className="text-xl font-bold text-gray-900 mb-1">FEDERAL UNIVERSITY OYE EKITI</h1>
             <h3 className="text-base font-semibold text-gray-800">COURSE REGISTRATION FORM</h3>
             <p className="text-xs text-gray-600 mt-1">{academicYear} Academic Session - {semester} Semester</p>
           </div>
 
+          {/* Student Info Section */}
           <div className="mb-6 page-break-inside-avoid">
             <div className="flex gap-4 items-start">
+              {/* Profile Picture */}
               <div className="flex-shrink-0">
                 {studentInfo.profilePictureUrl ? (
-                  <img src={studentInfo.profilePictureUrl} alt="Student" className="w-24 h-24 rounded-lg border-2 border-gray-400 object-cover" />
+                  <img 
+                    src={studentInfo.profilePictureUrl} 
+                    alt="Student" 
+                    className="w-24 h-24 rounded-lg border-2 border-gray-400 object-cover" 
+                  />
                 ) : (
                   <div className="w-24 h-24 rounded-lg border-2 border-gray-400 bg-gray-200 flex items-center justify-center">
                     <span className="text-2xl font-bold text-gray-500">
@@ -129,6 +202,7 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
                 )}
               </div>
 
+              {/* QR Code */}
               <div className="flex-shrink-0">
                 <div className="p-2 bg-white border-2 border-gray-400 rounded-lg">
                   <QRCode value={qrData} size={80} level="H" />
@@ -136,6 +210,7 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
                 </div>
               </div>
 
+              {/* Student Details */}
               <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div>
                   <p className="text-xs text-gray-600 font-semibold mb-0.5">Matric Number:</p>
@@ -167,6 +242,7 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
             </div>
           </div>
 
+          {/* Courses Table */}
           <div className="mb-6">
             <h3 className="text-base font-bold text-gray-900 mb-3 pb-1 border-b-2 border-gray-800">
               Registered Courses
@@ -199,7 +275,8 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
             </table>
           </div>
 
-          <div className="border-t-2 border-gray-800 pt-4 mt-6">
+          {/* Signatures */}
+          <div className="border-t-2 border-gray-800 pt-4 mt-6 page-break-inside-avoid">
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-gray-700 mb-6 font-semibold">Student's Signature:</p>
@@ -214,7 +291,8 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
             </div>
           </div>
 
-          <div className="text-center mt-6 text-[9px] text-gray-500">
+          {/* Footer */}
+          <div className="text-center mt-6 text-[9px] text-gray-500 page-break-inside-avoid">
             <p>Printed on: {new Date().toLocaleString()}</p>
             <p className="mt-0.5">This is a computer-generated document. No signature is required.</p>
           </div>
@@ -223,6 +301,214 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
     </div>
   );
 };
+// // ========================================
+// // PRINTABLE RECEIPT COMPONENT
+// // ========================================
+// const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, onClose }) => {
+//   const handlePrint = () => {
+//     window.print();
+//   };
+
+//   // ✅ FIX: Get semester from first registered course or default to current semester
+//   const getSemester = () => {
+//     if (registeredCourses && registeredCourses.length > 0) {
+//       return registeredCourses[0].semester;
+//     }
+//     // Default to current semester based on date
+//     const currentMonth = new Date().getMonth() + 1;
+//     return currentMonth >= 1 && currentMonth <= 6 ? 'First' : 'Second';
+//   };
+
+//   const getCurrentAcademicYear = () => {
+//     const currentDate = new Date();
+//     const currentMonth = currentDate.getMonth() + 1;
+//     const currentYear = currentDate.getFullYear();
+    
+//     return currentMonth >= 9 
+//       ? `${currentYear}/${currentYear + 1}` 
+//       : `${currentYear - 1}/${currentYear}`;
+//   };
+
+//   const semester = getSemester();
+//   const academicYear = getCurrentAcademicYear();
+
+//   const qrData = JSON.stringify({
+//     matricNumber: studentInfo.matricNumber,
+//     name: `${studentInfo.firstName} ${studentInfo.surname}`,
+//     level: studentInfo.level,
+//     department: studentInfo.department,
+//     totalCourses: registrationStats.totalRegistered,
+//     totalUnits: registrationStats.totalUnits,
+//     semester: semester,
+//     academicYear: academicYear,
+//     courses: registeredCourses.map(c => ({
+//       code: c.courseCode,
+//       title: c.courseTitle,
+//       unit: c.courseUnit,
+//       status: c.status
+//     }))
+//   });
+
+//   return (
+//     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+//       <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto">
+//         <style>{`
+//           @media print {
+//             body * { visibility: hidden; }
+//             .printable-area, .printable-area * { visibility: visible; }
+//             .printable-area { 
+//               position: absolute; 
+//               left: 0; 
+//               top: 0; 
+//               width: 100%; 
+//               padding: 15mm;
+//             }
+//             .no-print { display: none !important; }
+//             @page { margin: 12mm; size: A4; }
+//             .page-break-inside-avoid { page-break-inside: avoid; }
+//             table { page-break-inside: auto; }
+//             tr { page-break-inside: avoid; page-break-after: auto; }
+//             thead { display: table-header-group; }
+//             tfoot { display: table-footer-group; }
+//           }
+//         `}</style>
+
+//         <div className="no-print sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
+//           <h3 className="text-lg font-bold text-gray-800">Course Registration Receipt</h3>
+//           <div className="flex space-x-2">
+//             <button
+//               onClick={handlePrint}
+//               className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+//             >
+//               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+//               </svg>
+//               <span>Print</span>
+//             </button>
+//             <button
+//               onClick={onClose}
+//               className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition-colors"
+//             >
+//               ✕ Close
+//             </button>
+//           </div>
+//         </div>
+
+//         <div className="printable-area p-6">
+//           <div className="text-center mb-6 border-b-2 border-gray-800 pb-4 page-break-inside-avoid">
+//             <h1 className="text-xl font-bold text-gray-900 mb-1">FEDERAL UNIVERSITY OYE EKITI</h1>
+//             <h3 className="text-base font-semibold text-gray-800">COURSE REGISTRATION FORM</h3>
+//             <p className="text-xs text-gray-600 mt-1">{academicYear} Academic Session - {semester} Semester</p>
+//           </div>
+
+//           <div className="mb-6 page-break-inside-avoid">
+//             <div className="flex gap-4 items-start">
+//               <div className="flex-shrink-0">
+//                 {studentInfo.profilePictureUrl ? (
+//                   <img src={studentInfo.profilePictureUrl} alt="Student" className="w-24 h-24 rounded-lg border-2 border-gray-400 object-cover" />
+//                 ) : (
+//                   <div className="w-24 h-24 rounded-lg border-2 border-gray-400 bg-gray-200 flex items-center justify-center">
+//                     <span className="text-2xl font-bold text-gray-500">
+//                       {studentInfo.firstName?.charAt(0)}{studentInfo.surname?.charAt(0)}
+//                     </span>
+//                   </div>
+//                 )}
+//               </div>
+
+//               <div className="flex-shrink-0">
+//                 <div className="p-2 bg-white border-2 border-gray-400 rounded-lg">
+//                   <QRCode value={qrData} size={80} level="H" />
+//                   <p className="text-[9px] text-center mt-1 text-gray-600">Scan to verify</p>
+//                 </div>
+//               </div>
+
+//               <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+//                 <div>
+//                   <p className="text-xs text-gray-600 font-semibold mb-0.5">Matric Number:</p>
+//                   <p className="text-sm font-bold text-gray-900">{studentInfo.matricNumber}</p>
+//                 </div>
+//                 <div>
+//                   <p className="text-xs text-gray-600 font-semibold mb-0.5">Full Name:</p>
+//                   <p className="text-sm font-bold text-gray-900">
+//                     {studentInfo.surname} {studentInfo.firstName} {studentInfo.middleName}
+//                   </p>
+//                 </div>
+//                 <div>
+//                   <p className="text-xs text-gray-600 font-semibold mb-0.5">Department:</p>
+//                   <p className="text-xs text-gray-800">{studentInfo.department}</p>
+//                 </div>
+//                 <div>
+//                   <p className="text-xs text-gray-600 font-semibold mb-0.5">Level:</p>
+//                   <p className="text-xs text-gray-800">{studentInfo.level}</p>
+//                 </div>
+//                 <div>
+//                   <p className="text-xs text-gray-600 font-semibold mb-0.5">Email:</p>
+//                   <p className="text-xs text-gray-800">{studentInfo.email}</p>
+//                 </div>
+//                 <div>
+//                   <p className="text-xs text-gray-600 font-semibold mb-0.5">Phone:</p>
+//                   <p className="text-xs text-gray-800">{studentInfo.phoneNumber}</p>
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+
+//           <div className="mb-6">
+//             <h3 className="text-base font-bold text-gray-900 mb-3 pb-1 border-b-2 border-gray-800">
+//               Registered Courses
+//             </h3>
+//             <table className="w-full border-collapse border border-gray-400 text-xs">
+//               <thead>
+//                 <tr className="bg-gray-200">
+//                   <th className="border border-gray-400 px-2 py-1.5 text-left font-semibold">S/N</th>
+//                   <th className="border border-gray-400 px-2 py-1.5 text-left font-semibold">Course Code</th>
+//                   <th className="border border-gray-400 px-2 py-1.5 text-left font-semibold">Course Title</th>
+//                   <th className="border border-gray-400 px-2 py-1.5 text-center font-semibold">Units</th>
+//                 </tr>
+//               </thead>
+//               <tbody>
+//                 {registeredCourses.map((course, index) => (
+//                   <tr key={course.$id} className="hover:bg-gray-50">
+//                     <td className="border border-gray-400 px-2 py-1.5">{index + 1}</td>
+//                     <td className="border border-gray-400 px-2 py-1.5 font-semibold">{course.courseCode}</td>
+//                     <td className="border border-gray-400 px-2 py-1.5">{course.courseTitle}</td>
+//                     <td className="border border-gray-400 px-2 py-1.5 text-center">{course.courseUnit}</td>
+//                   </tr>
+//                 ))}
+//               </tbody>
+//               <tfoot>
+//                 <tr className="bg-gray-200 font-bold">
+//                   <td colSpan="3" className="border border-gray-400 px-2 py-1.5 text-right">TOTAL:</td>
+//                   <td className="border border-gray-400 px-2 py-1.5 text-center">{registrationStats.totalUnits} Units</td>
+//                 </tr>
+//               </tfoot>
+//             </table>
+//           </div>
+
+//           <div className="border-t-2 border-gray-800 pt-4 mt-6">
+//             <div className="grid grid-cols-2 gap-6">
+//               <div>
+//                 <p className="text-xs text-gray-700 mb-6 font-semibold">Student's Signature:</p>
+//                 <div className="border-b-2 border-gray-500 w-3/4"></div>
+//                 <p className="text-[10px] text-gray-600 mt-1">Date: {new Date().toLocaleDateString()}</p>
+//               </div>
+//               <div>
+//                 <p className="text-xs text-gray-700 mb-6 font-semibold">HOD's Signature:</p>
+//                 <div className="border-b-2 border-gray-500 w-3/4"></div>
+//                 <p className="text-[10px] text-gray-600 mt-1">Date: _______________</p>
+//               </div>
+//             </div>
+//           </div>
+
+//           <div className="text-center mt-6 text-[9px] text-gray-500">
+//             <p>Printed on: {new Date().toLocaleString()}</p>
+//             <p className="mt-0.5">This is a computer-generated document. No signature is required.</p>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
 
 // ========================================
 // MAIN STUDENT DASHBOARD COMPONENT
