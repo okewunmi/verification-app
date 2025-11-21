@@ -63,51 +63,68 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto">
-        {/* ✅ FIXED PRINT STYLES */}
+        {/* ✅ COMPLETELY FIXED PRINT STYLES */}
         <style>{`
           @media print {
-            /* Hide everything on the page */
-            body > *:not(.print-modal) {
+            /* Hide the modal overlay and everything outside */
+            body {
+              margin: 0;
+              padding: 0;
+            }
+            
+            /* Hide all body children except our modal */
+            body > *:not(#__next) {
               display: none !important;
             }
             
-            /* Show only the printable content */
-            .print-modal {
-              position: fixed !important;
-              top: 0 !important;
-              left: 0 !important;
-              right: 0 !important;
-              bottom: 0 !important;
-              width: 100% !important;
-              height: 100% !important;
+            /* For Next.js - hide everything except our modal */
+            #__next > *:not(.print-modal-wrapper) {
+              display: none !important;
+            }
+            
+            /* Show the modal wrapper */
+            .print-modal-wrapper {
+              display: block !important;
+              position: static !important;
+              background: white !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            
+            /* Reset the modal container for print */
+            .print-modal-container {
+              position: static !important;
+              max-width: 100% !important;
+              max-height: none !important;
+              overflow: visible !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
               margin: 0 !important;
               padding: 0 !important;
-              background: white !important;
-              z-index: 9999 !important;
             }
             
-            .print-modal * {
-              visibility: visible !important;
-            }
-            
-            /* Hide the modal overlay and buttons */
+            /* Hide buttons and non-printable elements */
             .no-print {
               display: none !important;
             }
             
-            /* Make printable area fill the page */
+            /* Show and style the printable area */
             .printable-area {
-              position: relative !important;
-              width: 100% !important;
-              max-width: 100% !important;
-              padding: 15mm !important;
+              display: block !important;
+              visibility: visible !important;
+              padding: 10mm !important;
               margin: 0 !important;
+            }
+            
+            /* Ensure all children are visible */
+            .printable-area * {
+              visibility: visible !important;
             }
             
             /* Page setup */
             @page {
               size: A4;
-              margin: 12mm;
+              margin: 10mm;
             }
             
             /* Prevent page breaks inside elements */
@@ -119,6 +136,7 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
             /* Table printing */
             table {
               page-break-inside: auto;
+              border-collapse: collapse !important;
             }
             
             tr {
@@ -134,19 +152,16 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
               display: table-footer-group;
             }
             
-            /* Remove any shadows, borders from modal */
-            .print-modal > div {
-              box-shadow: none !important;
-              border-radius: 0 !important;
-              max-height: none !important;
-              overflow: visible !important;
+            /* Ensure borders are visible */
+            table, th, td {
+              border: 1px solid #9CA3AF !important;
             }
-          }
-          
-          /* Screen styles */
-          @media screen {
-            .print-modal {
-              /* Keep modal styling for screen view */
+            
+            /* Ensure text colors are visible */
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
           }
         `}</style>
@@ -258,7 +273,7 @@ const PrintableReceipt = ({ studentInfo, registeredCourses, registrationStats, o
               </thead>
               <tbody>
                 {registeredCourses.map((course, index) => (
-                  <tr key={course.$id} className="hover:bg-gray-50">
+                  <tr key={course.$id}>
                     <td className="border border-gray-400 px-2 py-1.5">{index + 1}</td>
                     <td className="border border-gray-400 px-2 py-1.5 font-semibold">{course.courseCode}</td>
                     <td className="border border-gray-400 px-2 py-1.5">{course.courseTitle}</td>
@@ -1141,15 +1156,26 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {showPrintReceipt && (
+      {/* {showPrintReceipt && (
         <PrintableReceipt
           studentInfo={studentInfo}
           registeredCourses={registeredCourses}
           registrationStats={registrationStats}
           onClose={() => setShowPrintReceipt(false)}
         />
-      )}
-
+      )} */}
+{showPrintReceipt && (
+  <div className="print-modal-wrapper">
+    <div className="print-modal-container">
+      <PrintableReceipt
+        studentInfo={studentInfo}
+        registeredCourses={registeredCourses}
+        registrationStats={registrationStats}
+        onClose={() => setShowPrintReceipt(false)}
+      />
+    </div>
+  </div>
+)}
       <style jsx global>{`
         @keyframes slide-in {
           from {
