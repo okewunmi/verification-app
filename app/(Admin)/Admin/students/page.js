@@ -59,14 +59,10 @@ export default function StudentManagement() {
   });
 
   const departments = [
-    'Computer Science',
-    'Software Engineering',
-    'Information Technology',
-    'Cyber Security',
-    'Data Science',
-    'Electrical and Electronics Engineering',
-    'Mechanical Engineering',
-    'Civil Engineering'
+   'Engineering',
+    'Social Science',
+    'Education',
+    'Environmetal',
   ];
 
   const levels = ['100', '200', '300', '400', '500'];
@@ -834,7 +830,7 @@ export default function StudentManagement() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Department *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Faculty *</label>
                     <select
                       name="department"
                       value={formData.department}
@@ -850,7 +846,7 @@ export default function StudentManagement() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Course *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Department *</label>
                     <input
                       type="text"
                       name="course"
