@@ -855,14 +855,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* {showPrintReceipt && (
-        <PrintableReceipt
-          studentInfo={studentInfo}
-          registeredCourses={registeredCourses}
-          registrationStats={registrationStats}
-          onClose={() => setShowPrintReceipt(false)}
-        />
-      )} */}
 {showPrintReceipt && (
   <PrintableReceipt
     studentInfo={studentInfo}
