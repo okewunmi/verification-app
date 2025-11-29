@@ -91,7 +91,7 @@ export default function RootLayout({
         */}
         
         {/* Option 1: NPM CDN (RECOMMENDED) */}
-        <Script
+        {/* <Script
           src="https://unpkg.com/@digitalpersona/websdk@1.0.2/dist/websdk.client.ui.js"
           strategy="beforeInteractive"
           id="dp-websdk"
@@ -100,9 +100,9 @@ export default function RootLayout({
           src="https://unpkg.com/@digitalpersona/fingerprint@1.0.2/dist/fingerprint.sdk.js"
           strategy="beforeInteractive"
           id="dp-fingerprint"
-        />
+        /> */}
 
-        {/* Option 2: Local files (if CDN fails) 
+        {/* Option 2: Local files (if CDN fails)  */}
         <Script
           src="/js/websdk.client.ui.js"
           strategy="beforeInteractive"
@@ -113,7 +113,7 @@ export default function RootLayout({
           strategy="beforeInteractive"
           id="dp-fingerprint-local"
         />
-        */}
+       
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
