@@ -270,227 +270,6 @@ const openFingerprintModal = async (student) => {
     }
 };
 
-// const handleCaptureFinger = async () => {
-// // CRITICAL CHANGE: Use the new combined state
-//     if (!scannerStatus.ready) {
-//         setCaptureStatus({ type: 'error', message: scannerStatus.message || 'Scanner not initialized.' });
-//         return;
-//     }
-
-//     setIsCapturing(true);
-//     setCaptureStatus({ type: 'info', message: 'Place finger on scanner...' });
-
-//     try {
-//         const currentFinger = fingers[currentFingerIndex];
-        
-//         // Capture fingerprint
-//         const captureResult = await fingerprintScanner.capture(
-//             selectedStudent.$id,
-//             currentFinger.label
-//         );
-
-//         if (!captureResult.success) {
-//             throw new Error(captureResult.error);
-//         }
-
-//         // --- CRITICAL DUPLICATE CHECK START ---
-//         setCheckingDuplicates(true);
-//         setCaptureStatus({ type: 'info', message: 'Checking for duplicates...' });
-        
-//         const existingTemplates = [];
-        
-//         // 1. Add all fingerprints from OTHER students (Cross-user check)
-//         for (const student of students) {
-//             // Skip the current student being registered for their SAVED DB templates
-//             if (student.$id === selectedStudent.$id) {
-//                 continue; 
-//             }
-            
-//             // Add all their fingerprints to the check list
-//             // Note: We use .trim() to ensure we skip empty database strings
-//             if (student.thumbTemplate && student.thumbTemplate.trim() !== '') {
-//                 existingTemplates.push({ 
-//                     studentId: student.$id, 
-//                     matricNumber: student.matricNumber,
-//                     template: student.thumbTemplate,
-//                     fingerName: 'Thumb',
-//                     studentName: `${student.firstName} ${student.surname}`
-//                 });
-//             }
-            
-//             if (student.indexTemplate && student.indexTemplate.trim() !== '') {
-//                 existingTemplates.push({ 
-//                     studentId: student.$id, 
-//                     matricNumber: student.matricNumber,
-//                     template: student.indexTemplate,
-//                     fingerName: 'Index',
-//                     studentName: `${student.firstName} ${student.surname}`
-//                 });
-//             }
-            
-//             if (student.middleTemplate && student.middleTemplate.trim() !== '') {
-//                 existingTemplates.push({ 
-//                     studentId: student.$id, 
-//                     matricNumber: student.matricNumber,
-//                     template: student.middleTemplate,
-//                     fingerName: 'Middle',
-//                     studentName: `${student.firstName} ${student.surname}`
-//                 });
-//             }
-            
-//             if (student.ringTemplate && student.ringTemplate.trim() !== '') {
-//                 existingTemplates.push({ 
-//                     studentId: student.$id, 
-//                     matricNumber: student.matricNumber,
-//                     template: student.ringTemplate,
-//                     fingerName: 'Ring',
-//                     studentName: `${student.firstName} ${student.surname}`
-//                 });
-//             }
-            
-//             if (student.pinkyTemplate && student.pinkyTemplate.trim() !== '') {
-//                 existingTemplates.push({ 
-//                     studentId: student.$id, 
-//                     matricNumber: student.matricNumber,
-//                     template: student.pinkyTemplate,
-//                     fingerName: 'Pinky',
-//                     studentName: `${student.firstName} ${student.surname}`
-//                 });
-//             }
-//         }
-
-//         // 2. CRITICAL ADDITION: Check against prints captured in the *current session*
-//         // This prevents the user from capturing the thumb for both 'Thumb' and 'Index Finger'.
-//         Object.entries(capturedFingers).forEach(([fingerId, data]) => {
-//             if (fingerId !== currentFinger.id) { // Ensure we don't check a print against itself
-//                 existingTemplates.push({
-//                     studentId: selectedStudent.$id,
-//                     matricNumber: selectedStudent.matricNumber, // Use the current student's matric for error clarity
-//                     template: data.template,
-//                     fingerName: `${fingerId} (Current Session)`,
-//                     studentName: `${selectedStudent.firstName} ${selectedStudent.surname}`
-//                 });
-//             }
-//         });
-
-//         console.log(`🔍 Checking against ${existingTemplates.length} total fingerprints (Cross-user + Session prints)`);
-
-//         // Check for duplicates
-//         const duplicateCheck = await fingerprintScanner.checkForDuplicates(
-//             captureResult.template,
-//             existingTemplates
-//         );
-
-//         setCheckingDuplicates(false);
-
-//         if (duplicateCheck.hasDuplicates) {
-//             const duplicate = duplicateCheck.duplicates[0];
-//             setCaptureStatus({ 
-//                 type: 'error', 
-//                 message: `⚠️ DUPLICATE DETECTED! This fingerprint belongs to: ${duplicate.studentName || duplicate.matricNumber} (${duplicate.fingerName}). Please use a different finger.` 
-//             });
-//             setIsCapturing(false);
-            
-//             // Play error sound
-//             try {
-//                 const audio = new Audio('/sounds/error.mp3');
-//                 audio.play().catch(e => console.log('Audio play failed:', e));
-//             } catch (e) {
-//                 // Ignore audio errors
-//             }
-            
-//             return;
-//         }
-//         // --- CRITICAL DUPLICATE CHECK END ---
-
-
-//         // OPTIONAL: Check if this finger slot was already assigned (redundant but safe)
-//         if (capturedFingers[currentFinger.id]) {
-//             setCaptureStatus({ 
-//                 type: 'error', 
-//                 message: `This finger slot (${currentFinger.label}) has already been captured. Please move to the next slot.` 
-//             });
-//             setIsCapturing(false);
-//             return;
-//         }
-
-//         // No duplicate - accept the fingerprint
-//         console.log('✅ Fingerprint is unique - accepting');
-        
-//         setCapturedFingers(prev => ({
-//             ...prev,
-//             [currentFinger.id]: {
-//                 template: captureResult.template,
-//                 quality: captureResult.quality,
-//                 capturedAt: captureResult.capturedAt
-//             }
-//         }));
-
-//         setCaptureStatus({ 
-//             type: 'success', 
-//             message: `✅ ${currentFinger.label} captured successfully! (Quality: ${captureResult.quality}%)` 
-//         });
-        
-//         // Play success sound
-//         try {
-//             const audio = new Audio('/sounds/success.mp3');
-//             audio.play().catch(e => console.log('Audio play failed:', e));
-//         } catch (e) {
-//             // Ignore audio errors
-//         }
-        
-//         // Move to next finger after 1.5 seconds
-//         setTimeout(() => {
-//             if (currentFingerIndex < fingers.length - 1) {
-//                 setCurrentFingerIndex(currentFingerIndex + 1);
-//                 setCaptureStatus({ type: 'info', message: 'Ready for next finger...' });
-//             } else {
-//                 // All 5 fingers captured - save to database
-//                 saveFingerprintsToDatabase();
-//             }
-//             setIsCapturing(false);
-//         }, 1500);
-
-//     } catch (error) {
-//         console.error('❌ Capture error:', error);
-//         setCaptureStatus({ 
-//             type: 'error', 
-//             message: error.message || 'Capture failed. Please try again.' 
-//         });
-//         setIsCapturing(false);
-//         setCheckingDuplicates(false);
-//     }
-// };
-//   const saveFingerprintsToDatabase = async () => {
-//     setCaptureStatus({ type: 'info', message: 'Saving fingerprints to database...' });
-    
-//     try {
-//       const fingerprintData = {
-//         thumb: capturedFingers.thumb?.template || '',
-//         index: capturedFingers.index?.template || '',
-//         middle: capturedFingers.middle?.template || '',
-//         ring: capturedFingers.ring?.template || '',
-//         pinky: capturedFingers.pinky?.template || ''
-//       };
-
-//       const result = await saveFingerprints(selectedStudent.$id, fingerprintData);
-
-//       if (result.success) {
-//         showNotification('All fingerprints saved successfully!', 'success');
-//         fetchStudents();
-//         fetchStats();
-        
-//         setTimeout(() => {
-//           closeFingerprintModal();
-//         }, 2000);
-//       } else {
-//         showNotification('Error saving fingerprints: ' + result.error, 'error');
-//       }
-//     } catch (error) {
-//       showNotification('Error: ' + error.message, 'error');
-//     }
-//   };
-
   // Updated handleCaptureFinger for Storage-based solution
 const handleCaptureFinger = async () => {
   if (!scannerStatus.ready) {
@@ -506,7 +285,6 @@ const handleCaptureFinger = async () => {
     
     // Capture fingerprint
     const captureResult = await fingerprintScanner.capture(
-      selectedStudent.$id,
       currentFinger.label
     );
 
@@ -518,8 +296,6 @@ const handleCaptureFinger = async () => {
     setCheckingDuplicates(true);
     setCaptureStatus({ type: 'info', message: 'Checking for duplicates...' });
     
-    // CRITICAL CHANGE: Use the new storage-based duplicate check
-    // This will fetch ALL fingerprints from storage and compare
     const duplicateCheck = await checkFingerprintDuplicate(
       fingerprintScanner,
       captureResult.template
@@ -534,19 +310,15 @@ const handleCaptureFinger = async () => {
       });
       setIsCapturing(false);
       
-      // Play error sound
       try {
         const audio = new Audio('/sounds/error.mp3');
         audio.play().catch(e => console.log('Audio play failed:', e));
-      } catch (e) {
-        // Ignore audio errors
-      }
+      } catch (e) {}
       
       return;
     }
 
-    // ADDITIONAL: Check against current session captures
-    // This prevents using the same finger for multiple slots
+    // Check against current session captures
     const sessionDuplicates = [];
     for (const [fingerId, data] of Object.entries(capturedFingers)) {
       if (fingerId !== currentFinger.id) {
@@ -572,19 +344,15 @@ const handleCaptureFinger = async () => {
       });
       setIsCapturing(false);
       
-      // Play error sound
       try {
         const audio = new Audio('/sounds/error.mp3');
         audio.play().catch(e => console.log('Audio play failed:', e));
-      } catch (e) {
-        // Ignore audio errors
-      }
+      } catch (e) {}
       
       return;
     }
     // --- CRITICAL DUPLICATE CHECK END ---
 
-    // Check if this finger slot was already assigned
     if (capturedFingers[currentFinger.id]) {
       setCaptureStatus({ 
         type: 'error', 
@@ -594,42 +362,63 @@ const handleCaptureFinger = async () => {
       return;
     }
 
-    // No duplicate - accept the fingerprint
     console.log('✅ Fingerprint is unique - accepting');
     
-    setCapturedFingers(prev => ({
-      ...prev,
-      [currentFinger.id]: {
-        template: captureResult.template,
-        quality: captureResult.quality,
-        capturedAt: captureResult.capturedAt
-      }
-    }));
+    const newCapturedFingers = {
+  ...capturedFingers,
+  [currentFinger.id]: {
+    // TEMPORARY FIX: Convert to string if it's an object
+    template: typeof captureResult.template === 'string' 
+      ? captureResult.template 
+      : JSON.stringify(captureResult.template),
+    quality: captureResult.quality,
+    capturedAt: captureResult.capturedAt
+  }
+};
+    
+    // Update state for UI
+    setCapturedFingers(newCapturedFingers);
 
     setCaptureStatus({ 
       type: 'success', 
       message: `✅ ${currentFinger.label} captured successfully! (Quality: ${captureResult.quality}%)` 
     });
     
-    // Play success sound
     try {
       const audio = new Audio('/sounds/success.mp3');
       audio.play().catch(e => console.log('Audio play failed:', e));
-    } catch (e) {
-      // Ignore audio errors
-    }
+    } catch (e) {}
     
-    // Move to next finger after 1.5 seconds
+    const nextIndex = currentFingerIndex + 1;
+    const isLastFinger = nextIndex >= fingers.length;
+    
     setTimeout(() => {
-      if (currentFingerIndex < fingers.length - 1) {
-        setCurrentFingerIndex(currentFingerIndex + 1);
-        setCaptureStatus({ type: 'info', message: 'Ready for next finger...' });
-      } else {
-        // All 5 fingers captured - save to storage
-        saveFingerprintsToStorage();
-      }
-      setIsCapturing(false);
-    }, 1500);
+  if (isLastFinger) {
+    console.log('🎉 All 5 fingers captured! Saving to storage...');
+    
+    // DEBUG: Log the complete data structure
+    console.log('🔍 DEBUG - newCapturedFingers:', newCapturedFingers);
+    console.log('🔍 DEBUG - Keys in newCapturedFingers:', Object.keys(newCapturedFingers));
+    
+    // Log each finger's data structure
+    Object.entries(newCapturedFingers).forEach(([key, value]) => {
+      console.log(`🔍 DEBUG - ${key}:`, {
+        hasValue: !!value,
+        isObject: typeof value === 'object',
+        hasTemplate: value?.template !== undefined,
+        templateType: typeof value?.template,
+        templateLength: value?.template?.length || 0,
+        fullValue: value
+      });
+    });
+    
+    saveFingerprintsToStorage(newCapturedFingers);
+  } else {
+    setCurrentFingerIndex(nextIndex);
+    setCaptureStatus({ type: 'info', message: 'Ready for next finger...' });
+  }
+  setIsCapturing(false);
+}, 1500);
 
   } catch (error) {
     console.error('❌ Capture error:', error);
@@ -643,22 +432,56 @@ const handleCaptureFinger = async () => {
 };
 
 // RENAMED: saveFingerprintsToDatabase -> saveFingerprintsToStorage (more accurate)
-const saveFingerprintsToStorage = async () => {
+
+const saveFingerprintsToStorage = async (fingersData = null) => {
   setCaptureStatus({ type: 'info', message: 'Saving fingerprints to storage...' });
   
   try {
+    const dataToSave = fingersData || capturedFingers;
+    
+    console.log('💾 Preparing to save fingerprints');
+    console.log('🔍 DEBUG - dataToSave:', dataToSave);
+    console.log('🔍 DEBUG - dataToSave type:', typeof dataToSave);
+    console.log('🔍 DEBUG - dataToSave keys:', Object.keys(dataToSave || {}));
+    
+    // Log raw values before extraction
+    console.log('🔍 DEBUG - Raw values:');
+    console.log('  thumb:', dataToSave.thumb);
+    console.log('  index:', dataToSave.index);
+    console.log('  middle:', dataToSave.middle);
+    console.log('  ring:', dataToSave.ring);
+    console.log('  pinky:', dataToSave.pinky);
+    
     const fingerprintData = {
-      thumb: capturedFingers.thumb?.template || '',
-      index: capturedFingers.index?.template || '',
-      middle: capturedFingers.middle?.template || '',
-      ring: capturedFingers.ring?.template || '',
-      pinky: capturedFingers.pinky?.template || ''
+      thumb: dataToSave.thumb?.template || '',
+      index: dataToSave.index?.template || '',
+      middle: dataToSave.middle?.template || '',
+      ring: dataToSave.ring?.template || '',
+      pinky: dataToSave.pinky?.template || ''
     };
+    
+    console.log('📋 Extracted templates:', {
+      thumb: fingerprintData.thumb ? `${fingerprintData.thumb.length} chars` : 'EMPTY',
+      index: fingerprintData.index ? `${fingerprintData.index.length} chars` : 'EMPTY',
+      middle: fingerprintData.middle ? `${fingerprintData.middle.length} chars` : 'EMPTY',
+      ring: fingerprintData.ring ? `${fingerprintData.ring.length} chars` : 'EMPTY',
+      pinky: fingerprintData.pinky ? `${fingerprintData.pinky.length} chars` : 'EMPTY'
+    });
+    
+    // Log actual template values (first 100 chars)
+    console.log('🔍 DEBUG - Actual template values:');
+    Object.entries(fingerprintData).forEach(([key, value]) => {
+      if (value) {
+        console.log(`  ${key}: "${value.substring(0, 100)}..."`);
+      } else {
+        console.log(`  ${key}: EMPTY STRING`);
+      }
+    });
 
-    // This now uploads to Appwrite Storage bucket and saves file IDs to database
     const result = await saveFingerprints(selectedStudent.$id, fingerprintData);
 
     if (result.success) {
+      console.log('✅ Fingerprints saved successfully');
       showNotification('All fingerprints saved to storage successfully!', 'success');
       fetchStudents();
       fetchStats();
@@ -667,10 +490,12 @@ const saveFingerprintsToStorage = async () => {
         closeFingerprintModal();
       }, 2000);
     } else {
+      console.error('❌ Failed to save:', result.error);
       showNotification('Error saving fingerprints: ' + result.error, 'error');
     }
   } catch (error) {
     showNotification('Error: ' + error.message, 'error');
+    console.error('❌ Error in saveFingerprintsToStorage:', error);
   }
 };
 

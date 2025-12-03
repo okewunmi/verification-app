@@ -159,10 +159,10 @@ export default function RootLayout({
           Fallback: Local SDK files (if CDN fails)
           Uncomment if you have SDK files in /public/sdk/
         */}
-        {/* 
+        
         <script src="/sdk/websdk.client.ui.js" defer />
         <script src="/sdk/fingerprint.sdk.js" defer />
-        */}
+       
 
         {/* Development: SDK Validation Script */}
         {process.env.NODE_ENV === 'development' && (
