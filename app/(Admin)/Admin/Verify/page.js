@@ -2,7 +2,7 @@
 "use client"
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchStudentByFace, verifyStudentFingerprint } from '@/lib/appwrite';
+import { searchStudentByFace, verifyStudentFingerprint  } from '@/lib/appwrite';
 import fingerprintScanner from '@/lib/fingerprint-digitalpersona';
 export default function ExamVerificationInterface() {
   const router = useRouter();
@@ -246,7 +246,7 @@ export default function ExamVerificationInterface() {
   useEffect(() => {
     return () => {
       stopCamera();
-      fingerprintScanner.stop();
+      // fingerprintScanner.stop();
     };
   }, []);
 
