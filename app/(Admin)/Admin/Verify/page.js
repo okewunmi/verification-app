@@ -2,7 +2,7 @@
 "use client"
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchStudentByFace, verifyStudentFingerprint  } from '@/lib/appwrite';
+import { searchStudentByFace, checkFingerprintDuplicatePNG  } from '@/lib/appwrite';
 import fingerprintScanner from '@/lib/fingerprint-digitalpersona';
 export default function ExamVerificationInterface() {
   const router = useRouter();
@@ -167,7 +167,7 @@ export default function ExamVerificationInterface() {
     alert('Please use your fingerprint to verify...');
 
     // Verify fingerprint (WebAuthn handles everything)
-    const result = await verifyStudentFingerprint();
+    const result = await checkFingerprintDuplicatePNG();
 
     setScanProgress(100);
 

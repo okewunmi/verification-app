@@ -5,10 +5,11 @@ import {
   getAllStudents,
   updateStudent,
   deleteStudent,
-  saveFingerprints,
+  saveFingerprintsPNG,
   getStudentStats,
   generateDepartmentCode,
-checkFingerprintDuplicate,
+checkFingerprintDuplicatePNG,
+getStudentsWithFingerprintsPNG,
 
 } from '@/lib/appwrite';
 import { useRouter } from 'next/navigation';
@@ -270,7 +271,206 @@ const openFingerprintModal = async (student) => {
     }
 };
 
-  // Updated handleCaptureFinger for Storage-based solution
+// const handleCaptureFinger = async () => {
+//   if (!scannerStatus.ready) {
+//     setCaptureStatus({ type: 'error', message: scannerStatus.message || 'Scanner not initialized.' });
+//     return;
+//   }
+
+//   setIsCapturing(true);
+//   setCaptureStatus({ type: 'info', message: 'Place finger on scanner...' });
+
+//   try {
+//     const currentFinger = fingers[currentFingerIndex];
+    
+//     // Capture fingerprint
+//     const captureResult = await fingerprintScanner.capture(currentFinger.label);
+
+//     if (!captureResult.success) {
+//       throw new Error(captureResult.error);
+//     }
+
+//     // Extract the actual fingerprint data for storage
+//     let templateData = captureResult.template;
+    
+//     // If template is the DigitalPersona format, extract just the Data field
+//     try {
+//       if (typeof templateData === 'string' && (templateData.startsWith('[') || templateData.startsWith('{'))) {
+//         const parsed = JSON.parse(templateData);
+//         if (Array.isArray(parsed) && parsed[0]?.Data) {
+//           templateData = parsed[0].Data;
+//           console.log('✅ Extracted Data field from DigitalPersona format');
+//         } else if (parsed.Data) {
+//           templateData = parsed.Data;
+//           console.log('✅ Extracted Data field from DigitalPersona format');
+//         }
+//       }
+//     } catch (e) {
+//       console.warn('Could not parse template, using as-is');
+//     }
+
+//     // Duplicate check
+//     setCheckingDuplicates(true);
+//     setCaptureStatus({ type: 'info', message: 'Checking for duplicates...' });
+    
+//     const duplicateCheck = await checkFingerprintDuplicatePNG(
+//       fingerprintScanner,
+//       captureResult.template // Use original format for comparison
+//     );
+
+//     setCheckingDuplicates(false);
+
+//     if (duplicateCheck.isDuplicate) {
+//       setCaptureStatus({ 
+//         type: 'error', 
+//         message: `⚠️ DUPLICATE DETECTED! ${duplicateCheck.message}` 
+//       });
+//       setIsCapturing(false);
+//       try {
+//         const audio = new Audio('/sounds/error.mp3');
+//         audio.play().catch(e => console.log('Audio play failed:', e));
+//       } catch (e) {}
+//       return;
+//     }
+
+//     // Check against current session captures
+//     const sessionDuplicates = [];
+//     for (const [fingerId, data] of Object.entries(capturedFingers)) {
+//       if (fingerId !== currentFinger.id) {
+//         const comparison = await fingerprintScanner.compareTemplates(
+//           captureResult.template,
+//           data.template
+//         );
+        
+//         if (comparison.matched) {
+//           sessionDuplicates.push({
+//             fingerName: fingerId,
+//             studentName: `${selectedStudent.firstName} ${selectedStudent.surname}`
+//           });
+//         }
+//       }
+//     }
+
+//     if (sessionDuplicates.length > 0) {
+//       const duplicate = sessionDuplicates[0];
+//       setCaptureStatus({ 
+//         type: 'error', 
+//         message: `⚠️ DUPLICATE! You already captured this finger as "${duplicate.fingerName}". Please use a different finger.` 
+//       });
+//       setIsCapturing(false);
+//       try {
+//         const audio = new Audio('/sounds/error.mp3');
+//         audio.play().catch(e => console.log('Audio play failed:', e));
+//       } catch (e) {}
+//       return;
+//     }
+
+//     if (capturedFingers[currentFinger.id]) {
+//       setCaptureStatus({ 
+//         type: 'error', 
+//         message: `This finger slot (${currentFinger.label}) has already been captured. Please move to the next slot.` 
+//       });
+//       setIsCapturing(false);
+//       return;
+//     }
+
+//     console.log('✅ Fingerprint is unique - accepting');
+//     console.log('📏 Template data length:', templateData.length, 'chars');
+    
+//     // Store the extracted data (not the full DigitalPersona format)
+//     const newCapturedFingers = {
+//       ...capturedFingers,
+//       [currentFinger.id]: {
+//         template: templateData, // Store extracted Data field
+//         originalTemplate: captureResult.template, // Keep original for comparison
+//         quality: captureResult.quality,
+//         capturedAt: captureResult.capturedAt
+//       }
+//     };
+    
+//     setCapturedFingers(newCapturedFingers);
+
+//     setCaptureStatus({ 
+//       type: 'success', 
+//       message: `✅ ${currentFinger.label} captured successfully! (Quality: ${captureResult.quality}%)` 
+//     });
+    
+//     try {
+//       const audio = new Audio('/sounds/success.mp3');
+//       audio.play().catch(e => console.log('Audio play failed:', e));
+//     } catch (e) {}
+    
+//     const nextIndex = currentFingerIndex + 1;
+//     const isLastFinger = nextIndex >= fingers.length;
+    
+//     setTimeout(() => {
+//       if (isLastFinger) {
+//         console.log('🎉 All 5 fingers captured! Saving to storage...');
+//         saveFingerprintsPNGToStorage(newCapturedFingers);
+//       } else {
+//         setCurrentFingerIndex(nextIndex);
+//         setCaptureStatus({ type: 'info', message: 'Ready for next finger...' });
+//       }
+//       setIsCapturing(false);
+//     }, 1500);
+
+//   } catch (error) {
+//     console.error('❌ Capture error:', error);
+//     setCaptureStatus({ 
+//       type: 'error', 
+//       message: error.message || 'Capture failed. Please try again.' 
+//     });
+//     setIsCapturing(false);
+//     setCheckingDuplicates(false);
+//   }
+// };
+
+// const saveFingerprintsPNGToStorage = async (fingersData = null) => {
+//   setCaptureStatus({ type: 'info', message: 'Saving fingerprints to storage...' });
+  
+//   try {
+//     const dataToSave = fingersData || capturedFingers;
+    
+//     console.log('💾 Preparing to save fingerprints');
+    
+//     // Extract the clean template data (not the original DigitalPersona format)
+//     const fingerprintData = {
+//       thumb: dataToSave.thumb?.template || '',
+//       index: dataToSave.index?.template || '',
+//       middle: dataToSave.middle?.template || '',
+//       ring: dataToSave.ring?.template || '',
+//       pinky: dataToSave.pinky?.template || ''
+//     };
+    
+//     console.log('📋 Template lengths:', {
+//       thumb: fingerprintData.thumb.length,
+//       index: fingerprintData.index.length,
+//       middle: fingerprintData.middle.length,
+//       ring: fingerprintData.ring.length,
+//       pinky: fingerprintData.pinky.length
+//     });
+
+//     const result = await saveFingerprintsPNG(selectedStudent.$id, fingerprintData);
+
+//     if (result.success) {
+//       console.log('✅ Fingerprints saved successfully');
+//       showNotification('All fingerprints saved to storage successfully!', 'success');
+//       fetchStudents();
+//       fetchStats();
+      
+//       setTimeout(() => {
+//         closeFingerprintModal();
+//       }, 2000);
+//     } else {
+//       console.error('❌ Failed to save:', result.error);
+//       showNotification('Error saving fingerprints: ' + result.error, 'error');
+//     }
+//   } catch (error) {
+//     showNotification('Error: ' + error.message, 'error');
+//     console.error('❌ Error in saveFingerprintsPNGToStorage:', error);
+//   }
+// };
+
 const handleCaptureFinger = async () => {
   if (!scannerStatus.ready) {
     setCaptureStatus({ type: 'error', message: scannerStatus.message || 'Scanner not initialized.' });
@@ -283,51 +483,84 @@ const handleCaptureFinger = async () => {
   try {
     const currentFinger = fingers[currentFingerIndex];
     
-    // Capture fingerprint
-    const captureResult = await fingerprintScanner.capture(
-      currentFinger.label
-    );
+    // Capture fingerprint as PNG
+    const captureResult = await fingerprintScanner.capturePNG(currentFinger.label);
 
     if (!captureResult.success) {
       throw new Error(captureResult.error);
     }
 
-    // --- CRITICAL DUPLICATE CHECK START ---
+
+    // 🔍 EXTENSIVE DEBUGGING - Check what we captured
+console.log('\n🔍 === CAPTURE RESULT DEBUG ===');
+console.log('Success:', captureResult.success);
+console.log('Format:', captureResult.format);
+console.log('Quality:', captureResult.quality);
+console.log('Image Data Type:', typeof captureResult.imageData);
+console.log('Image Data Length:', captureResult.imageData?.length || 0);
+console.log('First 100 chars:', captureResult.imageData?.substring(0, 100));
+console.log('Has data URL prefix?:', captureResult.imageData?.includes('data:image'));
+console.log('Has comma?:', captureResult.imageData?.includes(','));
+console.log('First char code:', captureResult.imageData?.charCodeAt(0));
+console.log('Last 20 chars:', captureResult.imageData?.substring(captureResult.imageData.length - 20));
+console.log('=========================\n');
+
+
+    // Duplicate check using server-side API
     setCheckingDuplicates(true);
     setCaptureStatus({ type: 'info', message: 'Checking for duplicates...' });
     
-    const duplicateCheck = await checkFingerprintDuplicate(
-      fingerprintScanner,
-      captureResult.template
-    );
+    // Get all stored fingerprints
+    const storedFingerprints = await getStudentsWithFingerprintsPNG();
+    
+    if (storedFingerprints.success && storedFingerprints.data.length > 0) {
+      // Compare with each stored fingerprint using SERVER API
+      for (const stored of storedFingerprints.data) {
+        const response = await fetch('/api/fingerprint/compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image1: captureResult.imageData,
+            image2: stored.imageData
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.matched) {
+          setCheckingDuplicates(false);
+          setCaptureStatus({ 
+            type: 'error', 
+            message: `⚠️ DUPLICATE DETECTED! Already registered to ${stored.student.firstName} ${stored.student.surname}` 
+          });
+          setIsCapturing(false);
+          try {
+            const audio = new Audio('/sounds/error.mp3');
+            audio.play().catch(e => console.log('Audio play failed:', e));
+          } catch (e) {}
+          return;
+        }
+      }
+    }
 
     setCheckingDuplicates(false);
 
-    if (duplicateCheck.isDuplicate) {
-      setCaptureStatus({ 
-        type: 'error', 
-        message: `⚠️ DUPLICATE DETECTED! ${duplicateCheck.message}` 
-      });
-      setIsCapturing(false);
-      
-      try {
-        const audio = new Audio('/sounds/error.mp3');
-        audio.play().catch(e => console.log('Audio play failed:', e));
-      } catch (e) {}
-      
-      return;
-    }
-
-    // Check against current session captures
+    // Check against current session captures using SERVER API
     const sessionDuplicates = [];
     for (const [fingerId, data] of Object.entries(capturedFingers)) {
-      if (fingerId !== currentFinger.id) {
-        const comparison = await fingerprintScanner.compareTemplates(
-          captureResult.template,
-          data.template
-        );
+      if (fingerId !== currentFinger.id && data.imageData) {
+        const response = await fetch('/api/fingerprint/compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image1: captureResult.imageData,
+            image2: data.imageData
+          })
+        });
         
-        if (comparison.matched) {
+        const comparison = await response.json();
+        
+        if (comparison.success && comparison.matched) {
           sessionDuplicates.push({
             fingerName: fingerId,
             studentName: `${selectedStudent.firstName} ${selectedStudent.surname}`
@@ -343,15 +576,12 @@ const handleCaptureFinger = async () => {
         message: `⚠️ DUPLICATE! You already captured this finger as "${duplicate.fingerName}". Please use a different finger.` 
       });
       setIsCapturing(false);
-      
       try {
         const audio = new Audio('/sounds/error.mp3');
         audio.play().catch(e => console.log('Audio play failed:', e));
       } catch (e) {}
-      
       return;
     }
-    // --- CRITICAL DUPLICATE CHECK END ---
 
     if (capturedFingers[currentFinger.id]) {
       setCaptureStatus({ 
@@ -363,20 +593,18 @@ const handleCaptureFinger = async () => {
     }
 
     console.log('✅ Fingerprint is unique - accepting');
+    console.log('📏 Image data length:', captureResult.imageData.length, 'bytes');
     
+    // Store the PNG image data
     const newCapturedFingers = {
-  ...capturedFingers,
-  [currentFinger.id]: {
-    // TEMPORARY FIX: Convert to string if it's an object
-    template: typeof captureResult.template === 'string' 
-      ? captureResult.template 
-      : JSON.stringify(captureResult.template),
-    quality: captureResult.quality,
-    capturedAt: captureResult.capturedAt
-  }
-};
+      ...capturedFingers,
+      [currentFinger.id]: {
+        imageData: captureResult.imageData,
+        quality: captureResult.quality,
+        capturedAt: new Date().toISOString()
+      }
+    };
     
-    // Update state for UI
     setCapturedFingers(newCapturedFingers);
 
     setCaptureStatus({ 
@@ -393,32 +621,15 @@ const handleCaptureFinger = async () => {
     const isLastFinger = nextIndex >= fingers.length;
     
     setTimeout(() => {
-  if (isLastFinger) {
-    console.log('🎉 All 5 fingers captured! Saving to storage...');
-    
-    // DEBUG: Log the complete data structure
-    console.log('🔍 DEBUG - newCapturedFingers:', newCapturedFingers);
-    console.log('🔍 DEBUG - Keys in newCapturedFingers:', Object.keys(newCapturedFingers));
-    
-    // Log each finger's data structure
-    Object.entries(newCapturedFingers).forEach(([key, value]) => {
-      console.log(`🔍 DEBUG - ${key}:`, {
-        hasValue: !!value,
-        isObject: typeof value === 'object',
-        hasTemplate: value?.template !== undefined,
-        templateType: typeof value?.template,
-        templateLength: value?.template?.length || 0,
-        fullValue: value
-      });
-    });
-    
-    saveFingerprintsToStorage(newCapturedFingers);
-  } else {
-    setCurrentFingerIndex(nextIndex);
-    setCaptureStatus({ type: 'info', message: 'Ready for next finger...' });
-  }
-  setIsCapturing(false);
-}, 1500);
+      if (isLastFinger) {
+        console.log('🎉 All 5 fingers captured! Saving to storage...');
+        saveFingerprintsPNGToStorage(newCapturedFingers);
+      } else {
+        setCurrentFingerIndex(nextIndex);
+        setCaptureStatus({ type: 'info', message: 'Ready for next finger...' });
+      }
+      setIsCapturing(false);
+    }, 1500);
 
   } catch (error) {
     console.error('❌ Capture error:', error);
@@ -431,54 +642,48 @@ const handleCaptureFinger = async () => {
   }
 };
 
-// RENAMED: saveFingerprintsToDatabase -> saveFingerprintsToStorage (more accurate)
-
-const saveFingerprintsToStorage = async (fingersData = null) => {
+const saveFingerprintsPNGToStorage = async (fingersData = null) => {
   setCaptureStatus({ type: 'info', message: 'Saving fingerprints to storage...' });
   
   try {
     const dataToSave = fingersData || capturedFingers;
     
     console.log('💾 Preparing to save fingerprints');
-    console.log('🔍 DEBUG - dataToSave:', dataToSave);
-    console.log('🔍 DEBUG - dataToSave type:', typeof dataToSave);
-    console.log('🔍 DEBUG - dataToSave keys:', Object.keys(dataToSave || {}));
     
-    // Log raw values before extraction
-    console.log('🔍 DEBUG - Raw values:');
-    console.log('  thumb:', dataToSave.thumb);
-    console.log('  index:', dataToSave.index);
-    console.log('  middle:', dataToSave.middle);
-    console.log('  ring:', dataToSave.ring);
-    console.log('  pinky:', dataToSave.pinky);
-    
+    // Extract the PNG image data
     const fingerprintData = {
-      thumb: dataToSave.thumb?.template || '',
-      index: dataToSave.index?.template || '',
-      middle: dataToSave.middle?.template || '',
-      ring: dataToSave.ring?.template || '',
-      pinky: dataToSave.pinky?.template || ''
+      thumb: dataToSave.thumb?.imageData || '',
+      index: dataToSave.index?.imageData || '',
+      middle: dataToSave.middle?.imageData || '',
+      ring: dataToSave.ring?.imageData || '',
+      pinky: dataToSave.pinky?.imageData || ''
     };
     
-    console.log('📋 Extracted templates:', {
-      thumb: fingerprintData.thumb ? `${fingerprintData.thumb.length} chars` : 'EMPTY',
-      index: fingerprintData.index ? `${fingerprintData.index.length} chars` : 'EMPTY',
-      middle: fingerprintData.middle ? `${fingerprintData.middle.length} chars` : 'EMPTY',
-      ring: fingerprintData.ring ? `${fingerprintData.ring.length} chars` : 'EMPTY',
-      pinky: fingerprintData.pinky ? `${fingerprintData.pinky.length} chars` : 'EMPTY'
+    // 🔍 DEBUG BEFORE SAVING
+    console.log('🔍 === DATA BEFORE SAVING ===');
+    console.log('📋 Image data lengths:', {
+      thumb: fingerprintData.thumb.length,
+      index: fingerprintData.index.length,
+      middle: fingerprintData.middle.length,
+      ring: fingerprintData.ring.length,
+      pinky: fingerprintData.pinky.length
     });
     
-    // Log actual template values (first 100 chars)
-    console.log('🔍 DEBUG - Actual template values:');
-    Object.entries(fingerprintData).forEach(([key, value]) => {
-      if (value) {
-        console.log(`  ${key}: "${value.substring(0, 100)}..."`);
-      } else {
-        console.log(`  ${key}: EMPTY STRING`);
+    // Check each one
+    Object.entries(fingerprintData).forEach(([key, data]) => {
+      if (data) {
+        console.log(`🔍 ${key}:`, {
+          length: data.length,
+          hasDataURL: data.includes('data:image'),
+          hasComma: data.includes(','),
+          first50: data.substring(0, 50),
+          isValidBase64: /^[A-Za-z0-9+/]*={0,2}$/.test(data)
+        });
       }
     });
+    console.log('==========================\n');
 
-    const result = await saveFingerprints(selectedStudent.$id, fingerprintData);
+    const result = await saveFingerprintsPNG(selectedStudent.$id, fingerprintData);
 
     if (result.success) {
       console.log('✅ Fingerprints saved successfully');
@@ -495,10 +700,9 @@ const saveFingerprintsToStorage = async (fingersData = null) => {
     }
   } catch (error) {
     showNotification('Error: ' + error.message, 'error');
-    console.error('❌ Error in saveFingerprintsToStorage:', error);
+    console.error('❌ Error in saveFingerprintsPNGToStorage:', error);
   }
 };
-
   const resetForm = () => {
     setFormData({
       surname: '',
@@ -533,6 +737,8 @@ const saveFingerprintsToStorage = async (fingersData = null) => {
   const capturedCount = Object.keys(capturedFingers).length;
   const captureProgress = (capturedCount / 5) * 100;
 
+
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
