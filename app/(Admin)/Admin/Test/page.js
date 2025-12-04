@@ -1,258 +1,318 @@
 "use client"
 import React, { useState, useEffect } from 'react';
+import { CheckCircle, XCircle, Fingerprint, AlertCircle } from 'lucide-react';
 
-const FingerprintTest = () => {
-  const [scanner, setScanner] = useState(null);
-  const [testResults, setTestResults] = useState({
-    sdkLoaded: false,
-    serviceRunning: false,
-    deviceConnected: false,
-    canCapture: false
-  });
-  const [status, setStatus] = useState('Checking...');
-  const [captureResult, setCaptureResult] = useState(null);
-  const [loading, setLoading] = useState(false);
+export default function FingerprintVerification() {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [status, setStatus] = useState({ message: '', type: '' });
+  const [fingerprintScanner, setFingerprintScanner] = useState(null);
 
   useEffect(() => {
-    runDiagnostics();
+    // Load fingerprint scanner
+    const loadScanner = async () => {
+      try {
+        const scanner = (await import('@/lib/fingerprint-digitalpersona')).default;
+        setFingerprintScanner(scanner);
+        
+        const availability = await scanner.isAvailable();
+        if (availability.available) {
+          setStatus({ message: 'Scanner ready', type: 'success' });
+        } else {
+          setStatus({ message: availability.error, type: 'error' });
+        }
+      } catch (error) {
+        setStatus({ message: 'Failed to load scanner', type: 'error' });
+      }
+    };
+    
+    loadScanner();
   }, []);
 
-  const runDiagnostics = async () => {
-    setStatus('🔍 Running diagnostics...');
-    const results = {
-      sdkLoaded: false,
-      serviceRunning: false,
-      deviceConnected: false,
-      canCapture: false
-    };
-
-    // Check 1: SDK Loaded
-    if (typeof window !== 'undefined' && 
-        typeof window.Fingerprint !== 'undefined' &&
-        typeof window.Fingerprint.WebApi !== 'undefined') {
-      results.sdkLoaded = true;
-      setStatus('✅ SDK loaded');
-    } else {
-      setStatus('❌ SDK not loaded');
-      setTestResults(results);
+  const handleVerifyFingerprint = async () => {
+    if (!fingerprintScanner) {
+      setStatus({ message: 'Scanner not initialized', type: 'error' });
       return;
     }
 
-    // Check 2: Initialize and check service
+    setIsVerifying(true);
+    setVerificationResult(null);
+    setStatus({ message: 'Place your finger on the scanner...', type: 'info' });
+
     try {
-      const fp = new window.Fingerprint.WebApi();
-      setScanner(fp);
-      
-      const devices = await fp.enumerateDevices();
-      
-      if (devices && devices.length > 0) {
-        results.serviceRunning = true;
-        results.deviceConnected = true;
-        results.canCapture = true;
-        setStatus('✅ Scanner ready!');
-      } else {
-        results.serviceRunning = true; // Service responded but no devices
-        setStatus('⚠️ Service running but no scanner detected');
+      // Step 1: Capture fingerprint
+      console.log('🔍 Starting verification process...');
+      const captureResult = await fingerprintScanner.capturePNG('Verification');
+
+      if (!captureResult.success) {
+        throw new Error(captureResult.error);
       }
-    } catch (error) {
-      setStatus('❌ Cannot connect to DigitalPersona service');
-      console.error('Service error:', error);
-    }
 
-    setTestResults(results);
-  };
+      console.log('✅ Fingerprint captured, quality:', captureResult.quality + '%');
+      setStatus({ message: 'Fingerprint captured! Searching database...', type: 'info' });
 
-  const testCapture = async () => {
-    if (!scanner) {
-      setCaptureResult({ success: false, error: 'Scanner not initialized' });
-      return;
-    }
+      // Step 2: Get all stored fingerprints
+      const { getStudentsWithFingerprintsPNG } = await import('@/lib/appwrite');
+      const fingerprintsResult = await getStudentsWithFingerprintsPNG();
 
-    setLoading(true);
-    setCaptureResult(null);
-    setStatus('👆 Place finger on scanner...');
+      if (!fingerprintsResult.success) {
+        throw new Error('Failed to fetch stored fingerprints: ' + fingerprintsResult.error);
+      }
 
-    try {
-      const devices = await scanner.enumerateDevices();
-      
-      if (!devices || devices.length === 0) {
-        setCaptureResult({ 
-          success: false, 
-          error: 'No scanner detected' 
+      if (fingerprintsResult.data.length === 0) {
+        setVerificationResult({
+          matched: false,
+          message: 'No registered fingerprints found in database'
         });
-        setStatus('❌ No scanner detected');
-        setLoading(false);
+        setStatus({ message: 'No registered fingerprints', type: 'warning' });
+        setIsVerifying(false);
         return;
       }
 
-      const reader = devices[0];
-      
-      // Capture fingerprint
-      const sample = await scanner.startAcquisition(
-        window.Fingerprint.SampleFormat.PngImage,
-        reader
-      );
-
-      // Convert to FMD
-      const fmd = await scanner.createFmd(
-        sample,
-        window.Fingerprint.FmdFormat.ANSI_378_2004
-      );
-
-      // Stop acquisition
-      await scanner.stopAcquisition(reader);
-
-      // Convert to base64
-      const bytes = new Uint8Array(fmd);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const template = btoa(binary);
-
-      setCaptureResult({
-        success: true,
-        templateLength: template.length,
-        fmdSize: fmd.byteLength,
-        message: 'Fingerprint captured successfully!'
+      console.log(`📊 Comparing against ${fingerprintsResult.data.length} stored fingerprints...`);
+      setStatus({ 
+        message: `Comparing against ${fingerprintsResult.data.length} fingerprints...`, 
+        type: 'info' 
       });
-      
-      setStatus('✅ Capture successful!');
+
+      // Step 3: Compare with each stored fingerprint
+      let bestMatch = null;
+      let highestSimilarity = 0;
+      let comparisonCount = 0;
+
+      for (const stored of fingerprintsResult.data) {
+        comparisonCount++;
+        
+        if (comparisonCount % 10 === 0) {
+          setStatus({ 
+            message: `Comparing... (${comparisonCount}/${fingerprintsResult.data.length})`, 
+            type: 'info' 
+          });
+        }
+
+        try {
+          // Use server-side comparison API
+          const response = await fetch('/api/fingerprint/compare', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              image1: captureResult.imageData,
+              image2: stored.imageData
+            })
+          });
+
+          const compareResult = await response.json();
+
+          if (compareResult.success) {
+            console.log(`  ${stored.matricNumber} (${stored.fingerName}): ${compareResult.similarity}%`);
+
+            if (compareResult.matched && compareResult.similarity > highestSimilarity) {
+              highestSimilarity = compareResult.similarity;
+              bestMatch = {
+                student: stored.student,
+                fingerName: stored.fingerName,
+                similarity: compareResult.similarity,
+                confidence: compareResult.confidence
+              };
+            }
+          }
+        } catch (compareError) {
+          console.warn(`⚠️ Error comparing with ${stored.matricNumber}:`, compareError.message);
+        }
+      }
+
+      // Step 4: Return result
+      if (bestMatch) {
+        console.log('\n✅ === MATCH FOUND ===');
+        console.log('Student:', bestMatch.student.firstName, bestMatch.student.surname);
+        console.log('Confidence:', bestMatch.similarity + '%');
+        console.log('==================\n');
+
+        setVerificationResult({
+          matched: true,
+          student: bestMatch.student,
+          confidence: bestMatch.similarity,
+          fingerName: bestMatch.fingerName,
+          message: `Verified: ${bestMatch.student.firstName} ${bestMatch.student.surname}`
+        });
+        setStatus({ message: 'Match found!', type: 'success' });
+
+        // Play success sound
+        try {
+          const audio = new Audio('/sounds/success.mp3');
+          audio.play().catch(e => console.log('Audio failed:', e));
+        } catch (e) {}
+      } else {
+        console.log('\n❌ === NO MATCH FOUND ===');
+        console.log('Highest similarity:', highestSimilarity.toFixed(1) + '%');
+        console.log('=======================\n');
+
+        setVerificationResult({
+          matched: false,
+          message: `No match found. Highest similarity: ${highestSimilarity.toFixed(1)}%`
+        });
+        setStatus({ message: 'No match found', type: 'error' });
+
+        // Play error sound
+        try {
+          const audio = new Audio('/sounds/error.mp3');
+          audio.play().catch(e => console.log('Audio failed:', e));
+        } catch (e) {}
+      }
 
     } catch (error) {
-      setCaptureResult({
-        success: false,
-        error: error.message || 'Capture failed'
+      console.error('❌ Verification error:', error);
+      setStatus({ message: error.message || 'Verification failed', type: 'error' });
+      setVerificationResult({
+        matched: false,
+        message: 'Error: ' + error.message
       });
-      setStatus('❌ Capture failed');
-      console.error('Capture error:', error);
     } finally {
-      setLoading(false);
+      setIsVerifying(false);
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (status.type) {
+      case 'success': return 'text-green-600 bg-green-50';
+      case 'error': return 'text-red-600 bg-red-50';
+      case 'warning': return 'text-yellow-600 bg-yellow-50';
+      default: return 'text-blue-600 bg-blue-50';
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (status.type) {
+      case 'success': return <CheckCircle className="w-5 h-5" />;
+      case 'error': return <XCircle className="w-5 h-5" />;
+      case 'warning': return <AlertCircle className="w-5 h-5" />;
+      default: return <Fingerprint className="w-5 h-5" />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">
-            🔬 DigitalPersona Scanner Test
-          </h1>
-
-          {/* Status */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-            <p className="text-lg font-medium text-gray-900">
-              Current Status: <span className="ml-2">{status}</span>
-            </p>
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+            <Fingerprint className="w-8 h-8 text-blue-600" />
           </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Fingerprint Verification
+          </h2>
+          <p className="text-gray-600">
+            Place your finger on the scanner to verify identity
+          </p>
+        </div>
 
-          {/* Diagnostics Results */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Diagnostic Results
-            </h2>
-            <div className="space-y-3">
-              <DiagnosticRow
-                label="SDK Loaded"
-                passed={testResults.sdkLoaded}
-                details="DigitalPersona JavaScript SDK"
-              />
-              <DiagnosticRow
-                label="Service Running"
-                passed={testResults.serviceRunning}
-                details="DigitalPersona background service"
-              />
-              <DiagnosticRow
-                label="Device Connected"
-                passed={testResults.deviceConnected}
-                details="DigitalPersona 4500 scanner"
-              />
-              <DiagnosticRow
-                label="Can Capture"
-                passed={testResults.canCapture}
-                details="Ready to scan fingerprints"
-              />
-            </div>
+        {/* Status Display */}
+        {status.message && (
+          <div className={`flex items-center gap-3 p-4 rounded-lg mb-6 ${getStatusColor()}`}>
+            {getStatusIcon()}
+            <span className="font-medium">{status.message}</span>
           </div>
+        )}
 
-          {/* Actions */}
-          <div className="space-y-4 mb-8">
-            <button
-              onClick={runDiagnostics}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200"
-            >
-              🔄 Re-run Diagnostics
-            </button>
+        {/* Verify Button */}
+        <div className="text-center mb-8">
+          <button
+            onClick={handleVerifyFingerprint}
+            disabled={isVerifying || !fingerprintScanner}
+            className={`
+              px-8 py-4 rounded-lg font-semibold text-white text-lg
+              transition-all duration-200 transform
+              ${isVerifying || !fingerprintScanner
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'
+              }
+            `}
+          >
+            {isVerifying ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Verifying...
+              </span>
+            ) : (
+              'Verify Fingerprint'
+            )}
+          </button>
+        </div>
 
-            <button
-              onClick={testCapture}
-              disabled={!testResults.canCapture || loading}
-              className={`w-full font-semibold py-3 px-6 rounded-lg transition duration-200 ${
-                testResults.canCapture && !loading
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              {loading ? '⏳ Scanning...' : '👆 Test Fingerprint Capture'}
-            </button>
-          </div>
-
-          {/* Capture Result */}
-          {captureResult && (
-            <div className={`border rounded-lg p-4 ${
-              captureResult.success
-                ? 'bg-green-50 border-green-200'
-                : 'bg-red-50 border-red-200'
-            }`}>
-              <h3 className={`font-semibold mb-2 ${
-                captureResult.success ? 'text-green-900' : 'text-red-900'
-              }`}>
-                {captureResult.success ? '✅ Success' : '❌ Failed'}
-              </h3>
-              {captureResult.success ? (
-                <div className="text-green-800 space-y-1">
-                  <p>Template Length: {captureResult.templateLength} chars</p>
-                  <p>FMD Size: {captureResult.fmdSize} bytes</p>
-                  <p className="font-medium">{captureResult.message}</p>
-                </div>
+        {/* Verification Result */}
+        {verificationResult && (
+          <div className={`
+            p-6 rounded-lg border-2 
+            ${verificationResult.matched 
+              ? 'border-green-500 bg-green-50' 
+              : 'border-red-500 bg-red-50'
+            }
+          `}>
+            <div className="flex items-start gap-4">
+              {verificationResult.matched ? (
+                <CheckCircle className="w-8 h-8 text-green-600 flex-shrink-0" />
               ) : (
-                <p className="text-red-800">{captureResult.error}</p>
+                <XCircle className="w-8 h-8 text-red-600 flex-shrink-0" />
               )}
+              
+              <div className="flex-1">
+                <h3 className={`text-xl font-bold mb-2 ${
+                  verificationResult.matched ? 'text-green-900' : 'text-red-900'
+                }`}>
+                  {verificationResult.matched ? 'Verification Successful' : 'Verification Failed'}
+                </h3>
+                
+                {verificationResult.matched ? (
+                  <div className="space-y-2">
+                    <p className="text-lg font-semibold text-gray-900">
+                      {verificationResult.student.firstName} {verificationResult.student.surname}
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Matric Number:</span>
+                        <p className="font-medium">{verificationResult.student.matricNumber}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Department:</span>
+                        <p className="font-medium">{verificationResult.student.department}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Level:</span>
+                        <p className="font-medium">{verificationResult.student.level}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Finger Used:</span>
+                        <p className="font-medium">{verificationResult.fingerName}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Confidence:</span>
+                        <p className="font-medium">{verificationResult.confidence}%</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-700">
+                    {verificationResult.message}
+                  </p>
+                )}
+              </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Troubleshooting */}
-          {!testResults.canCapture && (
-            <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-              <h3 className="font-semibold text-yellow-900 mb-3">
-                🔧 Troubleshooting Steps:
-              </h3>
-              <ol className="list-decimal list-inside space-y-2 text-yellow-900">
-                <li>Install DigitalPersona software from official website</li>
-                <li>Ensure DigitalPersona service is running (Windows Services)</li>
-                <li>Connect scanner via USB and check Device Manager</li>
-                <li>Try different USB port</li>
-                <li>Restart computer and try again</li>
-                <li>Use Chrome or Edge browser (best compatibility)</li>
-              </ol>
-            </div>
-          )}
+        {/* Instructions */}
+        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Instructions:</h4>
+          <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
+            <li>Ensure your finger is clean and dry</li>
+            <li>Place your finger firmly on the scanner</li>
+            <li>Keep your finger still until capture is complete</li>
+            <li>Wait for the verification result</li>
+          </ol>
         </div>
       </div>
     </div>
   );
-};
-
-const DiagnosticRow = ({ label, passed, details }) => (
-  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-    <div>
-      <p className="font-medium text-gray-900">{label}</p>
-      <p className="text-sm text-gray-500">{details}</p>
-    </div>
-    <span className={`text-2xl ${passed ? 'text-green-500' : 'text-red-500'}`}>
-      {passed ? '✅' : '❌'}
-    </span>
-  </div>
-);
-
-export default FingerprintTest;
+}
