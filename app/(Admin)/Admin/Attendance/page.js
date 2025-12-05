@@ -7,11 +7,12 @@ import {
   adminMarkAttendance,
   closeAttendanceSession,
   getSessionAttendanceReport,
-  getStudentsForCourse
+  getStudentsForCourse,
+  databases, 
+  config, 
+  verifyStudentFingerprintPNG
 } from '@/lib/appwrite';
 import fingerprintScanner from '@/lib/fingerprint-digitalpersona';
-import { verifyStudentFingerprint } from '@/lib/appwrite';
-import { databases, config } from '@/lib/appwrite'; // ADD THIS IMPORT
 import { Query, ID } from 'appwrite'; // ADD THIS IMPORT
 
 export default function AdminAttendanceInterface() {
@@ -161,7 +162,7 @@ export default function AdminAttendanceInterface() {
       console.log('👆 Waiting for fingerprint...');
 
       // Verify fingerprint and get student
-      const verifyResult = await verifyStudentFingerprint();
+      const verifyResult = await verifyStudentFingerprintPNG();
 
       if (!verifyResult.success || !verifyResult.matched) {
         setLastResult({
