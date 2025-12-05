@@ -345,10 +345,10 @@ export default function FingerprintVerification() {
             <li>Use the <strong>same finger</strong> you registered with</li>
             <li>For best accuracy, quality should be <strong>above 70%</strong></li>
           </ol>
-          {/* <div className="mt-3 p-2 bg-blue-50 rounded text-xs text-blue-800">
+          <div className="mt-3 p-2 bg-blue-50 rounded text-xs text-blue-800">
             💡 <strong>Tip:</strong> The NBIS algorithm extracts minutiae points (ridge endings and bifurcations) 
             for matching - this is the same technology used by law enforcement and government agencies.
-          </div> */}
+          </div>
         </div>
       </div>
     </div>
