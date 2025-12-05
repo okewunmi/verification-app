@@ -136,43 +136,88 @@ export default function AdminAttendanceInterface() {
     }
   };
 
-  const handleStartSession = async () => {
-    if (!selectedCourse) {
-      alert('Please select a course first');
-      return;
-    }
+const handleStartSession = async () => {
+  if (!selectedCourse) {
+    alert('Please select a course first');
+    return;
+  }
 
+  if (sessionType === 'signout') {
+    const today = new Date().toISOString().split('T')[0];
+    
     try {
-      const result = await createAttendanceSession(
-        selectedCourse.courseCode,
-        selectedCourse.courseTitle,
-        sessionType
+      // Get all attendance for today
+      const todayAttendance = await databases.listDocuments(
+        config.databaseId,
+        config.attendanceCollectionId,
+        [
+          Query.equal('courseCode', selectedCourse.courseCode),
+          Query.equal('attendanceDate', today),
+          Query.limit(20) // Get more records to analyze
+        ]
       );
-
-      if (result.success) {
-        setActiveSession(result.data);
-        setAttendanceLog([]);
-        await loadRegisteredStudents();
-        
-        setStatus({
-          message: `${sessionType === 'signin' ? 'Sign-in' : 'Sign-out'} session started for ${selectedCourse.courseCode}`,
-          type: 'success'
-        });
+      
+      // Filter in JavaScript for better control
+      const pendingSignOuts = todayAttendance.documents.filter(record => {
+        // Has signed in (signInTime exists and signInStatus is Present)
+        const hasSignedIn = record.signInTime && record.signInStatus === 'Present';
+        // Has not signed out (signOutTime is null)
+        const notSignedOut = !record.signOutTime;
+        return hasSignedIn && notSignedOut;
+      });
+      
+      if (pendingSignOuts.length === 0) {
+        const proceed = confirm('No signed-in students found for today. Do you want to proceed with sign-out session anyway?');
+        if (!proceed) {
+          setSessionType('signin');
+          return;
+        }
       } else {
         setStatus({
-          message: result.error || 'Failed to start session',
-          type: 'error'
+          message: `Found ${pendingSignOuts.length} student(s) pending sign-out`,
+          type: 'info'
         });
       }
     } catch (error) {
+      console.error('Error checking attendance records:', error);
+      // Continue with sign-out session anyway
+      const proceed = confirm('Error checking existing records. Do you want to proceed with sign-out session anyway?');
+      if (!proceed) {
+        return;
+      }
+    }
+  }
+
+  try {
+    const result = await createAttendanceSession(
+      selectedCourse.courseCode,
+      selectedCourse.courseTitle,
+      sessionType
+    );
+
+    if (result.success) {
+      setActiveSession(result.data);
+      setAttendanceLog([]);
+      await loadRegisteredStudents();
+      
       setStatus({
-        message: error.message || 'Failed to start session',
+        message: `${sessionType === 'signin' ? 'Sign-in' : 'Sign-out'} session started for ${selectedCourse.courseCode}`,
+        type: 'success'
+      });
+    } else {
+      setStatus({
+        message: result.error || 'Failed to start session',
         type: 'error'
       });
     }
-  };
-
-  const handleScanFingerprint = async () => {
+  } catch (error) {
+    setStatus({
+      message: error.message || 'Failed to start session',
+      type: 'error'
+    });
+  }
+};
+const handleScanFingerprint = async () => {
     if (!activeSession) {
       alert('Please start a session first');
       return;
@@ -390,173 +435,175 @@ export default function AdminAttendanceInterface() {
     }
   };
 
-  // const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => {
-  //   try {
-  //     const timestamp = new Date().toISOString();
-  //     const date = timestamp.split('T')[0];
 
-  //     // Check if attendance record exists for this student today
-  //     const existingRecords = await databases.listDocuments(
-  //       config.databaseId,
-  //       config.attendanceCollectionId,
-  //       [
-  //         Query.equal('sessionId', sessionId),
-  //         Query.equal('matricNumber', student.matricNumber),
-  //         Query.equal('attendanceDate', date)
-  //       ]
-  //     );
-
-  //     if (existingRecords.documents.length > 0) {
-  //       const record = existingRecords.documents[0];
-        
-  //       // Check for duplicate sign-in/sign-out
-  //       if (type === 'signin' && record.signInTime) {
-  //         return {
-  //           success: false,
-  //           error: 'Student already signed in'
-  //         };
-  //       }
-
-  //       if (type === 'signout' && record.signOutTime) {
-  //         return {
-  //           success: false,
-  //           error: 'Student already signed out'
-  //         };
-  //       }
-
-  //       // Update record
-  //       await databases.updateDocument(
-  //         config.databaseId,
-  //         config.attendanceCollectionId,
-  //         record.$id,
-  //         type === 'signin' 
-  //           ? { signInTime: timestamp, signInFingerUsed: fingerUsed }
-  //           : { signOutTime: timestamp, signOutFingerUsed: fingerUsed }
-  //       );
-
-  //     } else {
-  //       // Create new record
-  //       await databases.createDocument(
-  //         config.databaseId,
-  //         config.attendanceCollectionId,
-  //         ID.unique(),
-  //         {
-  //           sessionId: sessionId,
-  //           studentId: student.$id,
-  //           matricNumber: student.matricNumber,
-  //           courseCode: activeSession.courseCode,
-  //           courseTitle: activeSession.courseTitle,
-  //           attendanceDate: date,
-  //           signInTime: type === 'signin' ? timestamp : null,
-  //           signOutTime: type === 'signout' ? timestamp : null,
-  //           signInFingerUsed: type === 'signin' ? fingerUsed : '',
-  //           signOutFingerUsed: type === 'signout' ? fingerUsed : '',
-  //           attended: true,
-  //           isActive: true,
-  //           semester: activeSession.semester,
-  //           academicYear: activeSession.academicYear
-  //         }
-  //       );
-  //     }
-
-  //     return { success: true };
-
-  //   } catch (error) {
-  //     console.error('Error marking attendance:', error);
-  //     return { success: false, error: error.message };
-  //   }
-  // };
-const markAttendanceInSession = async (sessionId, student, type, fingerUsed) => {
+  const markAttendanceInSession = async (sessionId, student, type, fingerUsed, courseId) => {
   try {
     const timestamp = new Date().toISOString();
     const date = timestamp.split('T')[0];
 
-    // Check if attendance record exists for this student today
+    // Validate and sanitize courseId
+    const sanitizedCourseId = String(courseId || '').trim().substring(0, 150);
+    
+    if (!sanitizedCourseId) {
+      return {
+        success: false,
+        error: 'Course ID is required'
+      };
+    }
+
+    // FIXED: Check for attendance record by date and course, NOT by sessionId
+    // This allows sign-out to work even if it's a different session than sign-in
     const existingRecords = await databases.listDocuments(
       config.databaseId,
       config.attendanceCollectionId,
       [
-        Query.equal('sessionId', sessionId),
         Query.equal('matricNumber', student.matricNumber),
-        Query.equal('attendanceDate', date)
+        Query.equal('courseCode', activeSession.courseCode),
+        Query.equal('attendanceDate', date),
+        Query.limit(1)
       ]
     );
 
     if (existingRecords.documents.length > 0) {
+      // Record exists
       const record = existingRecords.documents[0];
       
-      // Check for duplicate sign-in/sign-out
-      if (type === 'signin' && record.signInTime) {
-        return {
-          success: false,
-          error: 'Student already signed in'
-        };
-      }
-
-      if (type === 'signout' && record.signOutTime) {
-        return {
-          success: false,
-          error: 'Student already signed out'
-        };
-      }
-
-      // Update record
-      await databases.updateDocument(
-        config.databaseId,
-        config.attendanceCollectionId,
-        record.$id,
-        type === 'signin' 
-          ? { 
-              signInTime: timestamp, 
-              signInFingerUsed: fingerUsed,
-              signInStatus: 'Present' // Add this
-            }
-          : { 
-              signOutTime: timestamp, 
-              signOutFingerUsed: fingerUsed,
-              signOutStatus: 'Completed',
-              totalDuration: 0 // Add a default duration
-            }
-      );
-
-    } else {
-      // Create new record - IMPORTANT: Add courseId
-      await databases.createDocument(
-        config.databaseId,
-        config.attendanceCollectionId,
-        ID.unique(),
-        {
-          sessionId: sessionId,
-          studentId: student.$id,
-          matricNumber: student.matricNumber,
-          courseId: courseId,
-          // courseId: selectedCourse.courseId, // ← This was missing!
-          courseCode: activeSession.courseCode,
-          courseTitle: activeSession.courseTitle,
-          attendanceDate: date,
-          signInTime: type === 'signin' ? timestamp : null,
-          signOutTime: type === 'signout' ? timestamp : null,
-          signInFingerUsed: type === 'signin' ? fingerUsed : '',
-          signOutFingerUsed: type === 'signout' ? fingerUsed : '',
-          signInStatus: type === 'signin' ? 'Present' : '',
-          signOutStatus: type === 'signout' ? 'Completed' : null,
-          totalDuration: 0, // Default duration
-          attended: true,
-          isActive: true,
-          semester: activeSession.semester,
-          academicYear: activeSession.academicYear
+      if (type === 'signin') {
+        // PREVENT MULTIPLE SIGN-INS: Check if already signed in
+        if (record.signInTime && record.signInStatus === 'Present') {
+          return {
+            success: false,
+            error: `${student.firstName} ${student.surname} already signed in at ${new Date(record.signInTime).toLocaleTimeString()}. Cannot sign in twice.`
+          };
         }
-      );
+        
+        // Update sign-in time
+        await databases.updateDocument(
+          config.databaseId,
+          config.attendanceCollectionId,
+          record.$id,
+          {
+            signInTime: timestamp,
+            signInFingerUsed: fingerUsed,
+            signInStatus: 'Present',
+            // Update sessionId to current session
+            sessionId: sessionId
+          }
+        );
+        
+        return {
+          success: true,
+          message: `${student.firstName} ${student.surname} signed in successfully`
+        };
+        
+      } else if (type === 'signout') {
+        // PREVENT SIGN-OUT WITHOUT SIGN-IN: Check if student has signed in
+        if (!record.signInTime || record.signInStatus !== 'Present') {
+          return {
+            success: false,
+            error: `${student.firstName} ${student.surname} has not signed in yet. Please sign in first before signing out.`
+          };
+        }
+        
+        // PREVENT MULTIPLE SIGN-OUTS: Check if already signed out
+        if (record.signOutTime && record.signOutStatus === 'Completed') {
+          return {
+            success: false,
+            error: `${student.firstName} ${student.surname} already signed out at ${new Date(record.signOutTime).toLocaleTimeString()}. Cannot sign out twice.`
+          };
+        }
+        
+        // Calculate duration
+        const signInTime = new Date(record.signInTime);
+        const signOutTime = new Date(timestamp);
+        const durationMinutes = Math.floor((signOutTime - signInTime) / (1000 * 60));
+        
+        // Update sign-out time
+        await databases.updateDocument(
+          config.databaseId,
+          config.attendanceCollectionId,
+          record.$id,
+          {
+            signOutTime: timestamp,
+            signOutFingerUsed: fingerUsed,
+            signOutStatus: 'Completed',
+            totalDuration: durationMinutes
+          }
+        );
+        
+        return {
+          success: true,
+          message: `${student.firstName} ${student.surname} signed out successfully (${formatDuration(durationMinutes)})`
+        };
+      }
+      
+    } else {
+      // No record exists - only allow creating for sign-in
+      if (type === 'signin') {
+        // Create new record for sign-in
+        await databases.createDocument(
+          config.databaseId,
+          config.attendanceCollectionId,
+          ID.unique(),
+          {
+            sessionId: sessionId,
+            studentId: student.$id,
+            matricNumber: student.matricNumber,
+            courseId: sanitizedCourseId,
+            courseCode: activeSession.courseCode,
+            courseTitle: activeSession.courseTitle,
+            attendanceDate: date,
+            signInTime: timestamp,
+            signInFingerUsed: fingerUsed,
+            signInStatus: 'Present',
+            signOutTime: null,
+            signOutFingerUsed: '',
+            signOutStatus: null,
+            totalDuration: 0,
+            isActive: true,
+            semester: activeSession.semester,
+            academicYear: activeSession.academicYear
+          }
+        );
+        
+        return {
+          success: true,
+          message: `${student.firstName} ${student.surname} signed in successfully`
+        };
+        
+      } else if (type === 'signout') {
+        // Prevent sign-out without sign-in
+        return {
+          success: false,
+          error: `${student.firstName} ${student.surname} has not signed in yet. Please sign in first.`
+        };
+      }
     }
 
-    return { success: true };
+    return { success: false, error: 'Unknown error occurred' };
 
   } catch (error) {
     console.error('Error marking attendance:', error);
     return { success: false, error: error.message };
   }
 };
-  const handleCloseSession = async () => {
+
+// Helper function for duration formatting
+const formatDuration = (minutes) => {
+  if (!minutes) return '0 min';
+  
+  if (minutes < 60) {
+    return `${minutes} min${minutes !== 1 ? 's' : ''}`;
+  }
+  
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  
+  return `${hours}h ${mins}m`;
+};
+
+
+const handleCloseSession = async () => {
     if (!activeSession) return;
 
     if (!confirm('Are you sure you want to close this session?')) {
@@ -823,7 +870,19 @@ function SessionSetupPanel({
   return (
     <div className="bg-white rounded-2xl shadow-xl p-6">
       <h2 className="text-xl font-bold text-gray-800 mb-6">Session Setup</h2>
-
+{!activeSession && sessionType === 'signout' && (
+  <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-lg">
+    <div className="flex items-center gap-2 mb-2">
+      <AlertCircle className="w-5 h-5 text-orange-600" />
+      <span className="font-semibold text-orange-800">Sign-out Session Notice</span>
+    </div>
+    <p className="text-sm text-orange-700">
+      Students must have signed in earlier today to sign out.
+      <br />
+      Only students who have already signed in will be allowed to sign out.
+    </p>
+  </div>
+)}
       {!activeSession ? (
         <div className="space-y-6">
           <div>
