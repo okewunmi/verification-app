@@ -1,15 +1,16 @@
+
 "use client"
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Fingerprint, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Fingerprint, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function FingerprintVerification() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
   const [status, setStatus] = useState({ message: '', type: '' });
   const [fingerprintScanner, setFingerprintScanner] = useState(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
-    // Load fingerprint scanner
     const loadScanner = async () => {
       try {
         const scanner = (await import('@/lib/fingerprint-digitalpersona')).default;
@@ -37,11 +38,12 @@ export default function FingerprintVerification() {
 
     setIsVerifying(true);
     setVerificationResult(null);
+    setProgress({ current: 0, total: 0 });
     setStatus({ message: 'Place your finger on the scanner...', type: 'info' });
 
     try {
       // Step 1: Capture fingerprint
-      console.log('🔍 Starting verification process...');
+      console.log('🔍 Starting NBIS verification process...');
       const captureResult = await fingerprintScanner.capturePNG('Verification');
 
       if (!captureResult.success) {
@@ -49,7 +51,17 @@ export default function FingerprintVerification() {
       }
 
       console.log('✅ Fingerprint captured, quality:', captureResult.quality + '%');
-      setStatus({ message: 'Fingerprint captured! Searching database...', type: 'info' });
+      
+      if (captureResult.quality < 50) {
+        setStatus({ 
+          message: `Quality too low (${captureResult.quality}%). Please try again with a cleaner finger.`, 
+          type: 'warning' 
+        });
+        setIsVerifying(false);
+        return;
+      }
+
+      setStatus({ message: 'Loading database...', type: 'info' });
 
       // Step 2: Get all stored fingerprints
       const { getStudentsWithFingerprintsPNG } = await import('@/lib/appwrite');
@@ -69,71 +81,55 @@ export default function FingerprintVerification() {
         return;
       }
 
-      console.log(`📊 Comparing against ${fingerprintsResult.data.length} stored fingerprints...`);
+      const totalFingerprints = fingerprintsResult.data.length;
+      console.log(`📊 Database size: ${totalFingerprints} fingerprints`);
+      
+      setProgress({ current: 0, total: totalFingerprints });
       setStatus({ 
-        message: `Comparing against ${fingerprintsResult.data.length} fingerprints...`, 
+        message: `Comparing against ${totalFingerprints} fingerprints using NBIS...`, 
         type: 'info' 
       });
 
-      // Step 3: Compare with each stored fingerprint
-      let bestMatch = null;
-      let highestSimilarity = 0;
-      let comparisonCount = 0;
+      // Step 3: Use optimized batch comparison via NBIS
+      const response = await fetch('/api/fingerprint/verify-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          queryImage: captureResult.imageData,
+          database: fingerprintsResult.data.map(fp => ({
+            id: fp.fileId,
+            studentId: fp.student.$id,
+            matricNumber: fp.student.matricNumber,
+            studentName: `${fp.student.firstName} ${fp.student.surname}`,
+            fingerName: fp.fingerName,
+            imageData: fp.imageData,
+            student: fp.student
+          }))
+        })
+      });
 
-      for (const stored of fingerprintsResult.data) {
-        comparisonCount++;
-        
-        if (comparisonCount % 10 === 0) {
-          setStatus({ 
-            message: `Comparing... (${comparisonCount}/${fingerprintsResult.data.length})`, 
-            type: 'info' 
-          });
-        }
-
-        try {
-          // Use server-side comparison API
-          const response = await fetch('/api/fingerprint/compare', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              image1: captureResult.imageData,
-              image2: stored.imageData
-            })
-          });
-
-          const compareResult = await response.json();
-
-          if (compareResult.success) {
-            console.log(`  ${stored.matricNumber} (${stored.fingerName}): ${compareResult.similarity}%`);
-
-            if (compareResult.matched && compareResult.similarity > highestSimilarity) {
-              highestSimilarity = compareResult.similarity;
-              bestMatch = {
-                student: stored.student,
-                fingerName: stored.fingerName,
-                similarity: compareResult.similarity,
-                confidence: compareResult.confidence
-              };
-            }
-          }
-        } catch (compareError) {
-          console.warn(`⚠️ Error comparing with ${stored.matricNumber}:`, compareError.message);
-        }
+      if (!response.ok) {
+        throw new Error(`Verification failed: ${response.status}`);
       }
 
-      // Step 4: Return result
-      if (bestMatch) {
-        console.log('\n✅ === MATCH FOUND ===');
-        console.log('Student:', bestMatch.student.firstName, bestMatch.student.surname);
-        console.log('Confidence:', bestMatch.similarity + '%');
-        console.log('==================\n');
+      const result = await response.json();
+
+      // Step 4: Handle result
+      if (result.success && result.matched && result.bestMatch) {
+        console.log('\n✅ === MATCH FOUND (NBIS) ===');
+        console.log('Student:', result.bestMatch.studentName);
+        console.log('NBIS Score:', result.bestMatch.score);
+        console.log('Confidence:', result.bestMatch.confidence + '%');
+        console.log('============================\n');
 
         setVerificationResult({
           matched: true,
-          student: bestMatch.student,
-          confidence: bestMatch.similarity,
-          fingerName: bestMatch.fingerName,
-          message: `Verified: ${bestMatch.student.firstName} ${bestMatch.student.surname}`
+          student: result.bestMatch.student,
+          confidence: result.bestMatch.confidence,
+          score: result.bestMatch.score,
+          fingerName: result.bestMatch.fingerName,
+          message: `Verified: ${result.bestMatch.studentName}`,
+          method: 'NIST_NBIS'
         });
         setStatus({ message: 'Match found!', type: 'success' });
 
@@ -143,13 +139,14 @@ export default function FingerprintVerification() {
           audio.play().catch(e => console.log('Audio failed:', e));
         } catch (e) {}
       } else {
-        console.log('\n❌ === NO MATCH FOUND ===');
-        console.log('Highest similarity:', highestSimilarity.toFixed(1) + '%');
-        console.log('=======================\n');
+        console.log('\n❌ === NO MATCH FOUND (NBIS) ===');
+        console.log('Best score:', result.bestMatch?.score || 0);
+        console.log('================================\n');
 
         setVerificationResult({
           matched: false,
-          message: `No match found. Highest similarity: ${highestSimilarity.toFixed(1)}%`
+          message: `No match found. Best score: ${result.bestMatch?.score || 0}`,
+          totalCompared: result.totalCompared
         });
         setStatus({ message: 'No match found', type: 'error' });
 
@@ -169,15 +166,16 @@ export default function FingerprintVerification() {
       });
     } finally {
       setIsVerifying(false);
+      setProgress({ current: 0, total: 0 });
     }
   };
 
   const getStatusColor = () => {
     switch (status.type) {
-      case 'success': return 'text-green-600 bg-green-50';
-      case 'error': return 'text-red-600 bg-red-50';
-      case 'warning': return 'text-yellow-600 bg-yellow-50';
-      default: return 'text-blue-600 bg-blue-50';
+      case 'success': return 'text-green-600 bg-green-50 border-green-200';
+      case 'error': return 'text-red-600 bg-red-50 border-red-200';
+      case 'warning': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      default: return 'text-blue-600 bg-blue-50 border-blue-200';
     }
   };
 
@@ -201,15 +199,34 @@ export default function FingerprintVerification() {
             Fingerprint Verification
           </h2>
           <p className="text-gray-600">
-            Place your finger on the scanner to verify identity
+            Using NIST NBIS for accurate matching
           </p>
         </div>
 
         {/* Status Display */}
         {status.message && (
-          <div className={`flex items-center gap-3 p-4 rounded-lg mb-6 ${getStatusColor()}`}>
+          <div className={`flex items-center gap-3 p-4 rounded-lg border mb-6 ${getStatusColor()}`}>
             {getStatusIcon()}
-            <span className="font-medium">{status.message}</span>
+            <span className="font-medium flex-1">{status.message}</span>
+            {isVerifying && (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            )}
+          </div>
+        )}
+
+        {/* Progress Bar */}
+        {progress.total > 0 && isVerifying && (
+          <div className="mb-6">
+            <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <span>Processing...</span>
+              <span>{progress.current} / {progress.total}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              />
+            </div>
           </div>
         )}
 
@@ -229,10 +246,7 @@ export default function FingerprintVerification() {
           >
             {isVerifying ? (
               <span className="flex items-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
+                <Loader2 className="animate-spin h-5 w-5" />
                 Verifying...
               </span>
             ) : (
@@ -261,11 +275,11 @@ export default function FingerprintVerification() {
                 <h3 className={`text-xl font-bold mb-2 ${
                   verificationResult.matched ? 'text-green-900' : 'text-red-900'
                 }`}>
-                  {verificationResult.matched ? 'Verification Successful' : 'Verification Failed'}
+                  {verificationResult.matched ? '✅ Verification Successful' : '❌ Verification Failed'}
                 </h3>
                 
                 {verificationResult.matched ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-lg font-semibold text-gray-900">
                       {verificationResult.student.firstName} {verificationResult.student.surname}
                     </p>
@@ -287,15 +301,31 @@ export default function FingerprintVerification() {
                         <p className="font-medium">{verificationResult.fingerName}</p>
                       </div>
                       <div>
+                        <span className="text-gray-600">NBIS Score:</span>
+                        <p className="font-medium">{verificationResult.score}</p>
+                      </div>
+                      <div>
                         <span className="text-gray-600">Confidence:</span>
                         <p className="font-medium">{verificationResult.confidence}%</p>
                       </div>
                     </div>
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-xs text-blue-800">
+                        ✓ Verified using NIST NBIS (BOZORTH3) - Industry standard for fingerprint matching
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-gray-700">
-                    {verificationResult.message}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-gray-700">
+                      {verificationResult.message}
+                    </p>
+                    {verificationResult.totalCompared && (
+                      <p className="text-sm text-gray-600">
+                        Compared against {verificationResult.totalCompared} fingerprints
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -303,14 +333,22 @@ export default function FingerprintVerification() {
         )}
 
         {/* Instructions */}
-        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Instructions:</h4>
-          <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
-            <li>Ensure your finger is clean and dry</li>
-            <li>Place your finger firmly on the scanner</li>
-            <li>Keep your finger still until capture is complete</li>
-            <li>Wait for the verification result</li>
+        <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-gray-600" />
+            Instructions for Best Results:
+          </h4>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+            <li>Ensure your finger is <strong>clean and dry</strong></li>
+            <li>Place your finger <strong>firmly and centered</strong> on the scanner</li>
+            <li><strong>Do not move</strong> your finger until capture is complete</li>
+            <li>Use the <strong>same finger</strong> you registered with</li>
+            <li>For best accuracy, quality should be <strong>above 70%</strong></li>
           </ol>
+          <div className="mt-3 p-2 bg-blue-50 rounded text-xs text-blue-800">
+            💡 <strong>Tip:</strong> The NBIS algorithm extracts minutiae points (ridge endings and bifurcations) 
+            for matching - this is the same technology used by law enforcement and government agencies.
+          </div>
         </div>
       </div>
     </div>
