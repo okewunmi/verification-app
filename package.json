@@ -18,7 +18,7 @@
     "formidable": "^3.5.4",
     "lucide-react": "^0.545.0",
     "next": "15.5.4",
-    "node-appwrite": "^latest",
+    "node-appwrite": "^20.3.0",
     "nodemailer": "^7.0.10",
     "react": "19.1.0",
     "react-dom": "19.1.0",
