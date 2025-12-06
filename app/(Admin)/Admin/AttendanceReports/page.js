@@ -41,6 +41,7 @@ export default function AttendanceReports() {
     const mins = minutes % 60;
     return `${hours}h ${mins}m`;
   };
+  
 const exportToCSV = () => {
   if (!report || !report.report || report.report.length === 0) {
     alert('No data to export');
