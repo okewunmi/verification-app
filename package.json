@@ -15,6 +15,7 @@
     "@vladmandic/face-api": "^1.7.15",
     "appwrite": "^18.2.0",
     "bcryptjs": "^3.0.2",
+    "face-api.js": "^0.22.2",
     "form-data": "^4.0.4",
     "formidable": "^3.5.4",
     "lucide-react": "^0.545.0",
