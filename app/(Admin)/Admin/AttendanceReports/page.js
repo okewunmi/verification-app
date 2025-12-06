@@ -284,32 +284,7 @@ const exportToCSV = () => {
             </div>
 
             {/* Export/Print Options */}
-            {/* <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Export Options</h3>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => {
-                    // You can implement export to CSV/PDF here
-                    alert('Export feature coming soon!');
-                  }}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Export to CSV
-                </button>
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Print Report
-                </button>
-                <button
-                  onClick={() => setReport(null)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  New Report
-                </button>
-              </div>
-            </div> */}
+            
              <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Export Options</h3>
               <div className="flex flex-wrap gap-3">

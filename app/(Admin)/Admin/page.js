@@ -3,11 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   logOut, 
-  // getCurrentUser,
-  // getCurrentAdmin, 
   getDashboardStats, 
   getRecentActivity,
-  // adminLogout
 } from '@/lib/appwrite';
 import { useAuth } from '@/lib/useAuth';
 
@@ -19,8 +16,7 @@ export default function AdminDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
   const [activityLoading, setActivityLoading] = useState(true);
-  // const [adminUser, setAdminUser] = useState(null);
-  // Real data states
+
   const [dashboardStats, setDashboardStats] = useState({
     totalStudents: 0,
     activeCourses: 0,
@@ -31,50 +27,7 @@ export default function AdminDashboard() {
 
   const router = useRouter();
 const { user, loading, isAuthenticated, checkAuth, logout } = useAuth();
-  // Check authentication on mount
-  // useEffect(() => {
-  //   const checkAuth = async () => {
-  //     try {
-  //       const user = await getCurrentUser();
-  //       if (!user) {
-  //         router.push('/admin-login');
-  //         return;
-  //       }
-  //       setLoading(false);
-  //     } catch (error) {
-  //       console.error('Auth check error:', error);
-  //       router.push('/admin-login');
-  //     }
-  //   };
-
-  //   checkAuth();
-  // }, [router]);
-
-  // ✅ Replace the authentication check
-// useEffect(() => {
-//   const checkAuth = async () => {
-//     try {
-//       const result = await getCurrentAdmin();
-      
-//       if (!result.success || !result.user) {
-//         console.log('No active session, redirecting to login');
-//         router.replace('/admin-login');
-//         return;
-//       }
-
-//       console.log('Admin authenticated:', result.user);
-//       setAdminUser(result.user);
-//       setLoading(false);
-//     } catch (error) {
-//       console.error('Auth check error:', error);
-//       router.replace('/admin-login');
-//     }
-//   };
-
-//   checkAuth();
-// }, [router]);
-
-// ✅ IMPROVED: Single auth check with caching
+  
   useEffect(() => {
     const verifyAuth = async () => {
       const result = await checkAuth();
@@ -229,28 +182,29 @@ const { user, loading, isAuthenticated, checkAuth, logout } = useAuth();
       ),
       link: '/Admin/AttendanceReports'
     },
+    {
+  id: 'enroll-faces',
+  title: 'Enroll Faces',
+  icon: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  link: '/Admin/enroll-faces'
+},
     // {
-    //   id: 'faceSync',
-    //   title: 'Sync Faces',
+    //   id: 'exam-sessions',
+    //   title: 'Registered Courses',
     //   icon: (
     //     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    //       <path d="M12 14l9-5-9-5-9 5 9 5z" />
+    //       <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+    //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
     //     </svg>
     //   ),
-    //   link: '/Admin/FaceSync'
+    //   link: '/Admin/RegisteredCourse'
     // },
-    {
-      id: 'exam-sessions',
-      title: 'Registered Courses',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path d="M12 14l9-5-9-5-9 5 9 5z" />
-          <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-        </svg>
-      ),
-      link: '/Admin/RegisteredCourse'
-    },
     {
       id: 'sub-Admin',
       title: 'Sub Admin',
@@ -326,28 +280,6 @@ const { user, loading, isAuthenticated, checkAuth, logout } = useAuth();
     router.push(path); 
   };
 
- 
-// const handleSignOut = async () => {
-//   if (isLoggingOut) return;
-
-//   try {
-//     setIsLoggingOut(true);
-    
-//     const result = await adminLogout();
-    
-//     if (result.success) {
-//       console.log('Logout successful');
-//     }
-    
-//     router.replace('/admin-login');
-    
-//   } catch (error) {
-//     console.error('Logout error:', error);
-//     router.replace('/admin-login');
-//   } finally {
-//     setIsLoggingOut(false);
-//   }
-// };
 
   // ✅ IMPROVED: Logout with cache clear
   const handleSignOut = async () => {
