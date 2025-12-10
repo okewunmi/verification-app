@@ -45,14 +45,14 @@ export default function CourseUploadPage() {
   ];
 
   const departments = [
-    { id: '1', name: 'Computer Science', value: 'Computer Science' },
-    { id: '2', name: 'Software Engineering', value: 'Software Engineering' },
-    { id: '3', name: 'Information Technology', value: 'Information Technology' },
-    { id: '4', name: 'Cyber Security', value: 'Cyber Security' },
-    { id: '5', name: 'Data Science', value: 'Data Science' },
-    { id: '6', name: 'Electrical and Electronics Engineering', value: 'Electrical and Electronics Engineering' },
-    { id: '7', name: 'Mechanical Engineering', value: 'Mechanical Engineering' },
-    { id: '8', name: 'Civil Engineering', value: 'Civil Engineering' }
+    // { id: '1', name: 'Computer Science', value: 'Computer Science' },
+    // { id: '2', name: 'Software Engineering', value: 'Software Engineering' },
+    // { id: '3', name: 'Information Technology', value: 'Information Technology' },
+    // { id: '4', name: 'Cyber Security', value: 'Cyber Security' },
+    // { id: '5', name: 'Data Science', value: 'Data Science' },
+    { id: '6', name: 'Electrical Electronics Engineering', value: 'Electrical Electronics Engineering' },
+    // { id: '7', name: 'Mechanical Engineering', value: 'Mechanical Engineering' },
+    // { id: '8', name: 'Civil Engineering', value: 'Civil Engineering' }
   ];
 
   useEffect(() => {
