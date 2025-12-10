@@ -91,7 +91,16 @@ const courses = [
     };
   }, []);
 
- // In StudentManagement.js: closeFingerprintModal
+ useEffect(() => {
+  // Import and run debug
+  const testConnection = async () => {
+    const { debugAppwriteConnection } = await import('@/lib/appwrite');
+    await debugAppwriteConnection();
+  };
+  
+  testConnection();
+}, []);
+
 
 const closeFingerprintModal = async () => {
     // Reset the initialization flag when closing the modal
