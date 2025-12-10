@@ -279,50 +279,96 @@ export default function StudentDashboard() {
     return getCurrentSemester();
   };
 
-  useEffect(() => {
-    const loadStudentData = async () => {
-      try {
-        const studentData = localStorage.getItem('studentData');
-        if (!studentData) {
-          router.push('/student-login');
-          return;
-        }
+  // useEffect(() => {
+  //   const loadStudentData = async () => {
+  //     try {
+  //       const studentData = localStorage.getItem('studentData');
+  //       if (!studentData) {
+  //         router.push('/student-login');
+  //         return;
+  //       }
 
-        const student = JSON.parse(studentData);
-        const result = await getStudentByMatricNumber(student.matricNumber);
+  //       const student = JSON.parse(studentData);
+  //       const result = await getStudentByMatricNumber(student.matricNumber);
         
-        if (result.success) {
-          setStudentInfo(result.data);
-          await fetchAvailableCourses(result.data.level, result.data.department);
-          await fetchRegisteredCourses(result.data.matricNumber);
-          await fetchRegistrationStats(result.data.matricNumber);
-        } else {
-          router.push('/student-login');
-        }
-      } catch (error) {
-        console.error('Error loading student data:', error);
-        router.push('/student-login');
-      } finally {
-        setLoading(false);
-      }
-    };
+  //       if (result.success) {
+  //         setStudentInfo(result.data);
+  //         await fetchAvailableCourses(result.data.level, result.data.department);
+  //         await fetchRegisteredCourses(result.data.matricNumber);
+  //         await fetchRegistrationStats(result.data.matricNumber);
+  //       } else {
+  //         router.push('/student-login');
+  //       }
+  //     } catch (error) {
+  //       console.error('Error loading student data:', error);
+  //       router.push('/student-login');
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    loadStudentData();
-  }, [router]);
-
-  const fetchAvailableCourses = async (level, department) => {
+  //   loadStudentData();
+  // }, [router]);
+useEffect(() => {
+  const loadStudentData = async () => {
     try {
-      setCoursesLoading(true);
-      const result = await getAvailableCoursesForStudent(level, department);
+      const studentData = localStorage.getItem('studentData');
+      if (!studentData) {
+        router.push('/student-login');
+        return;
+      }
+
+      const student = JSON.parse(studentData);
+      const result = await getStudentByMatricNumber(student.matricNumber);
+      
       if (result.success) {
-        setAvailableCourses(result.data);
+        setStudentInfo(result.data);
+        
+        // 🔧 FIX: Pass student.course instead of student.department
+        await fetchAvailableCourses(result.data.level, result.data.course);
+        
+        await fetchRegisteredCourses(result.data.matricNumber);
+        await fetchRegistrationStats(result.data.matricNumber);
+      } else {
+        router.push('/student-login');
       }
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      console.error('Error loading student data:', error);
+      router.push('/student-login');
     } finally {
-      setCoursesLoading(false);
+      setLoading(false);
     }
   };
+
+  loadStudentData();
+}, [router]);
+
+  // const fetchAvailableCourses = async (level, result.data.course) => {
+  //   try {
+  //     setCoursesLoading(true);
+  //     const result = await getAvailableCoursesForStudent(level, department);
+  //     if (result.success) {
+  //       setAvailableCourses(result.data);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error fetching courses:', error);
+  //   } finally {
+  //     setCoursesLoading(false);
+  //   }
+  // };
+const fetchAvailableCourses = async (level, course) => { // Changed 'department' to 'course'
+  try {
+    setCoursesLoading(true);
+    const result = await getAvailableCoursesForStudent(level, course);
+    if (result.success) {
+      setAvailableCourses(result.data);
+    }
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+  } finally {
+    setCoursesLoading(false);
+  }
+};
 
   const fetchRegisteredCourses = async (matricNumber) => {
     try {

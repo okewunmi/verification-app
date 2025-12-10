@@ -66,11 +66,16 @@ const [scannerStatus, setScannerStatus] = useState({ ready: false, message: null
 
   const departments = [
    'Engineering',
-    'Social Science',
-    'Education',
-    'Environmetal',
+    // 'Social Science',
+    // 'Education',
+    // 'Environmetal',
   ];
-
+const courses = [
+   'Electrical Electronics Engineering',
+    // 'Social Science',
+    // 'Education',
+    // 'Environmetal',
+  ];
   const levels = ['100', '200', '300', '400', '500'];
 
   useEffect(() => {
@@ -977,7 +982,7 @@ const saveFingerprintsPNGToStorage = async (fingersData = null) => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Department *</label>
-                    <input
+                    {/* <input
                       type="text"
                       name="course"
                       value={formData.course}
@@ -985,7 +990,19 @@ const saveFingerprintsPNGToStorage = async (fingersData = null) => {
                       required
                       placeholder="e.g., Computer Science"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    />
+                    /> */}
+                    <select
+                      name="course"
+                      value={formData.course}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="">Select course</option>
+                      {courses.map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
                     {formData.course && (
                       <p className="text-xs text-gray-500 mt-1">
                         Code: {generateDepartmentCode(formData.course)}
