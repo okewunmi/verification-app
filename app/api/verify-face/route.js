@@ -1,90 +1,27 @@
 // app/api/verify-face/route.js
-// API endpoint for React Native app to verify faces
+// Simplified API endpoint - only compares descriptors (no canvas dependency)
 
 import { NextResponse } from 'next/server';
-import * as faceapi from 'face-api.js';
-import { Canvas, Image as CanvasImage } from 'canvas';
 import { databases, config } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 
-// Polyfill for face-api.js to work in Node.js
-// This is needed because face-api.js expects browser APIs
-const { Canvas: NodeCanvas, Image: NodeImage, ImageData: NodeImageData } = require('canvas');
-faceapi.env.monkeyPatch({ Canvas: NodeCanvas, Image: NodeImage, ImageData: NodeImageData });
-
-// Track if models are loaded
-let modelsLoaded = false;
-const MATCH_THRESHOLD = 0.5;
+const MATCH_THRESHOLD = 0.5; // Lower = stricter matching
 
 /**
- * Load face-api.js models from public/models folder
+ * Calculate Euclidean distance between two descriptors
  */
-async function loadModels() {
-  if (modelsLoaded) return;
-
-  try {
-    console.log('📦 Loading face-api.js models from public/models...');
-    
-    // Models are in public/models folder
-    const modelPath = './public/models';
-
-    await Promise.all([
-      faceapi.nets.ssdMobilenetv1.loadFromDisk(modelPath),
-      faceapi.nets.faceLandmark68Net.loadFromDisk(modelPath),
-      faceapi.nets.faceRecognitionNet.loadFromDisk(modelPath)
-    ]);
-
-    modelsLoaded = true;
-    console.log('✅ Face models loaded successfully');
-  } catch (error) {
-    console.error('❌ Error loading models:', error);
-    throw new Error('Failed to load face recognition models');
+function euclideanDistance(descriptor1, descriptor2) {
+  if (descriptor1.length !== descriptor2.length) {
+    throw new Error('Descriptor lengths must match');
   }
-}
-
-/**
- * Extract face descriptor from base64 image
- */
-async function extractDescriptor(base64Image) {
-  try {
-    // Remove data URL prefix if present
-    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    // Create canvas image from buffer
-    const img = new CanvasImage();
-    img.src = buffer;
-
-    // Detect face with landmarks and descriptor
-    const detection = await faceapi
-      .detectSingleFace(img)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (!detection) {
-      return {
-        success: false,
-        error: 'NO_FACE_DETECTED',
-        message: 'No face detected in image. Please ensure good lighting and face the camera directly.'
-      };
-    }
-
-    const confidence = Math.round(detection.detection.score * 100);
-    console.log(`✅ Face detected with ${confidence}% confidence`);
-
-    return {
-      success: true,
-      descriptor: Array.from(detection.descriptor),
-      confidence: confidence
-    };
-  } catch (error) {
-    console.error('❌ Error extracting descriptor:', error);
-    return {
-      success: false,
-      error: error.message,
-      message: 'Failed to extract face descriptor'
-    };
+  
+  let sum = 0;
+  for (let i = 0; i < descriptor1.length; i++) {
+    const diff = descriptor1[i] - descriptor2[i];
+    sum += diff * diff;
   }
+  
+  return Math.sqrt(sum);
 }
 
 /**
@@ -92,6 +29,8 @@ async function extractDescriptor(base64Image) {
  */
 async function getStudentsWithFaces() {
   try {
+    console.log('📚 Loading students from database...');
+    
     const response = await databases.listDocuments(
       config.databaseId,
       config.studentsCollectionId,
@@ -106,6 +45,8 @@ async function getStudentsWithFaces() {
     const students = response.documents.filter(
       s => s.faceDescriptor && s.faceDescriptor.trim() !== ''
     );
+
+    console.log(`✅ Found ${students.length} students with registered faces`);
 
     return {
       success: true,
@@ -122,115 +63,95 @@ async function getStudentsWithFaces() {
 }
 
 /**
- * Verify face using FaceMatcher
+ * Find best matching student
  */
-async function verifyFaceWithMatcher(queryDescriptor, storedDescriptors) {
-  try {
-    console.log(`🔍 Comparing against ${storedDescriptors.length} stored faces...`);
+function findBestMatch(queryDescriptor, students) {
+  let bestMatch = null;
+  let bestDistance = Infinity;
 
-    // Create labeled descriptors for FaceMatcher
-    const labeledDescriptors = storedDescriptors.map(stored => {
-      const label = `${stored.matricNumber}|${stored.firstName}|${stored.surname}|${stored.$id}`;
-      const descriptor = new Float32Array(stored.descriptor);
-      return new faceapi.LabeledFaceDescriptors(label, [descriptor]);
-    });
+  console.log(`🔍 Comparing against ${students.length} stored faces...`);
 
-    // Create FaceMatcher with threshold
-    const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, MATCH_THRESHOLD);
-
-    // Convert query descriptor to Float32Array
-    const queryFloat32 = new Float32Array(queryDescriptor);
-
-    // Find best match
-    const bestMatch = faceMatcher.findBestMatch(queryFloat32);
-
-    console.log(`📊 Best match: ${bestMatch.label}`);
-    console.log(`   Distance: ${bestMatch.distance.toFixed(3)}`);
-    console.log(`   Threshold: ${MATCH_THRESHOLD}`);
-
-    // Check if it's a genuine match
-    if (bestMatch.label !== 'unknown' && bestMatch.distance <= MATCH_THRESHOLD) {
-      // Parse the label to get student info
-      const [matricNumber, firstName, surname, studentId] = bestMatch.label.split('|');
+  for (let i = 0; i < students.length; i++) {
+    const student = students[i];
+    
+    try {
+      // Parse stored descriptor
+      const storedDescriptor = JSON.parse(student.faceDescriptor);
       
-      // Find the full student object
-      const studentData = storedDescriptors.find(s => s.$id === studentId);
-
-      console.log(`✅ MATCH FOUND: ${firstName} ${surname}`);
-
-      return {
-        success: true,
-        matched: true,
-        student: studentData || { 
-          matricNumber, 
-          firstName, 
-          surname, 
-          studentId,
-          $id: studentId 
-        },
-        confidence: Math.round((1 - bestMatch.distance) * 100),
-        distance: bestMatch.distance,
-        message: 'Face matched successfully'
-      };
-    } else {
-      console.log(`❌ NO MATCH: Distance ${bestMatch.distance.toFixed(3)} exceeds threshold`);
+      // Calculate distance
+      const distance = euclideanDistance(queryDescriptor, storedDescriptor);
       
-      return {
-        success: true,
-        matched: false,
-        bestDistance: bestMatch.distance,
-        message: `No matching face found. Distance: ${bestMatch.distance.toFixed(3)}`
-      };
+      // Track best match
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestMatch = student;
+      }
+
+      // Log progress every 50 comparisons
+      if ((i + 1) % 50 === 0) {
+        console.log(`   Progress: ${i + 1}/${students.length} - Best: ${bestDistance.toFixed(3)}`);
+      }
+    } catch (err) {
+      console.error(`⚠️ Error comparing with student ${student.matricNumber}:`, err.message);
+      continue;
     }
-  } catch (error) {
-    console.error('❌ Error during verification:', error);
-    return {
-      success: false,
-      matched: false,
-      error: error.message,
-      message: 'Verification failed'
-    };
   }
+
+  console.log(`\n📊 Best match distance: ${bestDistance.toFixed(3)}`);
+  console.log(`   Threshold: ${MATCH_THRESHOLD}`);
+
+  return { bestMatch, bestDistance };
 }
 
 /**
- * POST endpoint for face verification from React Native app
+ * POST endpoint for face verification
+ * Accepts either:
+ * 1. { descriptor: [...] } - 128-element array from client-side extraction
+ * 2. { image: "data:image/jpeg;base64,..." } - fallback for server-side processing
  */
 export async function POST(request) {
   try {
     console.log('\n🔍 Face verification request received');
 
-    // Load models if not already loaded
-    await loadModels();
-
-    // Parse request body (expecting JSON with base64 image)
     const body = await request.json();
-    const { image: base64Image } = body;
+    const { descriptor, image, confidence } = body;
 
-    if (!base64Image) {
+    // Validate input
+    if (!descriptor && !image) {
       return NextResponse.json({
         success: false,
-        message: 'No image provided'
+        message: 'No descriptor or image provided'
       }, { status: 400 });
     }
 
-    console.log('📸 Image received, extracting face descriptor...');
+    let queryDescriptor;
 
-    // Step 1: Extract face descriptor from captured image
-    const extractResult = await extractDescriptor(base64Image);
-    
-    if (!extractResult.success) {
+    if (descriptor) {
+      // Client sent descriptor directly (preferred method)
+      console.log('✅ Using client-provided descriptor');
+      
+      if (!Array.isArray(descriptor) || descriptor.length !== 128) {
+        return NextResponse.json({
+          success: false,
+          message: 'Invalid descriptor format. Expected 128-element array.'
+        }, { status: 400 });
+      }
+      
+      queryDescriptor = descriptor;
+      
+      if (confidence) {
+        console.log(`   Client detection confidence: ${confidence}%`);
+      }
+    } else {
+      // Server-side processing not available without canvas
       return NextResponse.json({
         success: false,
-        message: extractResult.message,
-        error: extractResult.error
+        message: 'Server-side face extraction not available. Please extract descriptor on client.',
+        hint: 'Use face-api.js on the client to extract the descriptor before sending.'
       }, { status: 400 });
     }
 
-    console.log(`✅ Face extracted (confidence: ${extractResult.confidence}%)`);
-
-    // Step 2: Get all students with face descriptors from database
-    console.log('📚 Loading students from database...');
+    // Get all students with face descriptors
     const studentsResult = await getStudentsWithFaces();
 
     if (!studentsResult.success) {
@@ -248,49 +169,46 @@ export async function POST(request) {
       });
     }
 
-    console.log(`📋 Found ${studentsResult.data.length} students with registered faces`);
-
-    // Step 3: Prepare stored descriptors
-    const storedDescriptors = studentsResult.data.map(student => ({
-      ...student,
-      descriptor: JSON.parse(student.faceDescriptor)
-    }));
-
-    // Step 4: Verify face
-    console.log('🔄 Matching face...');
-    const verifyResult = await verifyFaceWithMatcher(
-      extractResult.descriptor,
-      storedDescriptors
+    // Find best match
+    console.log('🔄 Finding best match...');
+    const { bestMatch, bestDistance } = findBestMatch(
+      queryDescriptor,
+      studentsResult.data
     );
 
-    // Step 5: Return result
-    if (verifyResult.matched) {
-      console.log('✅ Verification successful!\n');
+    // Check if match exceeds threshold
+    if (bestDistance <= MATCH_THRESHOLD && bestMatch) {
+      console.log(`✅ MATCH FOUND: ${bestMatch.firstName} ${bestMatch.surname}`);
+      console.log(`   Matric: ${bestMatch.matricNumber}`);
+      console.log(`   Distance: ${bestDistance.toFixed(3)}\n`);
+
       return NextResponse.json({
         success: true,
         matched: true,
         student: {
-          $id: verifyResult.student.$id,
-          matricNumber: verifyResult.student.matricNumber,
-          firstName: verifyResult.student.firstName,
-          middleName: verifyResult.student.middleName,
-          surname: verifyResult.student.surname,
-          level: verifyResult.student.level,
-          department: verifyResult.student.department,
-          course: verifyResult.student.course,
-          profilePictureUrl: verifyResult.student.profilePictureUrl
+          $id: bestMatch.$id,
+          matricNumber: bestMatch.matricNumber,
+          firstName: bestMatch.firstName,
+          middleName: bestMatch.middleName,
+          surname: bestMatch.surname,
+          level: bestMatch.level,
+          department: bestMatch.department,
+          course: bestMatch.course,
+          profilePictureUrl: bestMatch.profilePictureUrl
         },
-        confidence: verifyResult.confidence,
-        distance: verifyResult.distance,
+        confidence: Math.round((1 - bestDistance) * 100),
+        distance: bestDistance,
         message: 'Face matched successfully'
       });
     } else {
-      console.log('❌ No match found\n');
+      console.log(`❌ NO MATCH: Best distance ${bestDistance.toFixed(3)} exceeds threshold\n`);
+      
       return NextResponse.json({
         success: true,
         matched: false,
-        message: verifyResult.message,
-        bestDistance: verifyResult.bestDistance
+        message: `No matching face found. Best distance: ${bestDistance.toFixed(3)}`,
+        bestDistance: bestDistance,
+        threshold: MATCH_THRESHOLD
       });
     }
 
@@ -304,11 +222,15 @@ export async function POST(request) {
   }
 }
 
-// GET endpoint for health check
+/**
+ * GET endpoint for health check
+ */
 export async function GET() {
   return NextResponse.json({
     status: 'ok',
     message: 'Face verification API is running',
-    modelsLoaded: modelsLoaded
+    mode: 'descriptor-comparison-only',
+    threshold: MATCH_THRESHOLD,
+    note: 'Send 128-element descriptor array for verification'
   });
 }
