@@ -1,6 +1,4 @@
 // app/api/verify-face/route.js
-// Simplified API endpoint - only compares descriptors (no canvas dependency)
-
 import { NextResponse } from 'next/server';
 import { databases, config } from '@/lib/appwrite';
 import { Query } from 'appwrite';
