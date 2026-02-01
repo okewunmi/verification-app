@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, XCircle, Fingerprint, AlertCircle, Loader2 } from 'lucide-react';
 
-export default function ExamVerificationInterface() {
+export default function OptimizedExamVerification() {
   const router = useRouter();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -19,6 +19,11 @@ export default function ExamVerificationInterface() {
   const [fingerprintScanner, setFingerprintScanner] = useState(null);
   const [faceRecognition, setFaceRecognition] = useState(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  
+  // ⭐ NEW: Caching
+  const [fingerprintCache, setFingerprintCache] = useState(null);
+  const [cacheTimestamp, setCacheTimestamp] = useState(null);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   useEffect(() => {
     const loadScanner = async () => {
@@ -36,9 +41,7 @@ export default function ExamVerificationInterface() {
     
     const loadFaceRecognition = async () => {
       try {
-        // const faceRec = (await import('@/lib/face-recognition-browser')).default;
         const faceRec = await import('@/lib/face-recognition-browser').then(m => m.default);
-
         setFaceRecognition(faceRec);
         const result = await faceRec.loadModels();
         if (result.success) {
@@ -53,8 +56,51 @@ export default function ExamVerificationInterface() {
     loadScanner();
     loadFaceRecognition();
 
+    // ⭐ Pre-load fingerprint database
+    preloadFingerprintDatabase();
+
     return () => stopCamera();
   }, []);
+
+  // ⭐ Pre-load fingerprint database on component mount
+  const preloadFingerprintDatabase = async () => {
+    try {
+      console.log('🔄 Pre-loading fingerprint database...');
+      const { getStudentsWithFingerprintsPNG } = await import('@/lib/appwrite');
+      const result = await getStudentsWithFingerprintsPNG();
+      
+      if (result.success) {
+        setFingerprintCache(result);
+        setCacheTimestamp(Date.now());
+        console.log(`✅ Pre-loaded ${result.data.length} fingerprints`);
+      }
+    } catch (error) {
+      console.error('❌ Pre-load error:', error);
+    }
+  };
+
+  // ⭐ Get fingerprints with caching
+  const getFingerprintsWithCache = async () => {
+    const now = Date.now();
+    
+    // Return cached data if still fresh
+    if (fingerprintCache && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION)) {
+      console.log('💾 Using cached fingerprint database');
+      return fingerprintCache;
+    }
+    
+    // Fetch fresh data
+    console.log('📥 Fetching fresh fingerprint database...');
+    const { getStudentsWithFingerprintsPNG } = await import('@/lib/appwrite');
+    const result = await getStudentsWithFingerprintsPNG();
+    
+    if (result.success) {
+      setFingerprintCache(result);
+      setCacheTimestamp(now);
+    }
+    
+    return result;
+  };
 
   const getStatusColor = () => {
     switch (status.type) {
@@ -110,118 +156,113 @@ export default function ExamVerificationInterface() {
     return canvas.toDataURL('image/jpeg', 0.95);
   };
 
-
-const handleFaceVerification = async () => {
-  if (!cameraActive) {
-    await startCamera();
-    return;
-  }
-
-  setIsVerifying(true);
-  setVerificationResult(null);
-  setProgress({ current: 0, total: 100 });
-  setErrorMessage('');
-  setStatus({ message: 'Capturing face...', type: 'info' });
-
-  try {
-    if (!faceRecognition || !modelsLoaded) {
-      setStatus({ message: 'Loading face recognition models...', type: 'info' });
-      const faceRec = (await import('@/lib/face-recognition-browser')).default;
-      setFaceRecognition(faceRec);
-      const loadResult = await faceRec.loadModels();
-      if (!loadResult.success) throw new Error('Failed to load face recognition models');
-      setModelsLoaded(true);
-    }
-
-    const capturedImageBase64 = captureFaceImage();
-    if (!capturedImageBase64) throw new Error('Failed to capture image');
-
-    setProgress({ current: 20, total: 100 });
-    setStatus({ message: 'Analyzing face features...', type: 'info' });
-    
-    const extractResult = await faceRecognition.extractDescriptor(capturedImageBase64);
-    if (!extractResult.success) throw new Error(extractResult.message || 'Failed to detect face');
-
-    console.log(`✅ Face detected (confidence: ${extractResult.confidence}%)`);
-    setProgress({ current: 40, total: 100 });
-
-    setStatus({ message: 'Loading database...', type: 'info' });
-    const { getStudentsWithFaceDescriptors } = await import('@/lib/appwrite');
-    const studentsResult = await getStudentsWithFaceDescriptors();
-
-    if (!studentsResult.success || studentsResult.data.length === 0) {
-      setVerificationResult({ matched: false, message: 'No registered faces in database' });
-      setStatus({ message: 'No registered faces', type: 'warning' });
-      setIsVerifying(false);
-      setProgress({ current: 0, total: 0 });
+  const handleFaceVerification = async () => {
+    if (!cameraActive) {
+      await startCamera();
       return;
     }
 
-    const totalStudents = studentsResult.data.length;
-    setProgress({ current: 60, total: 100 });
-    setStatus({ message: `Comparing against ${totalStudents} faces...`, type: 'info' });
+    setIsVerifying(true);
+    setVerificationResult(null);
+    setProgress({ current: 0, total: 100 });
+    setErrorMessage('');
+    setStatus({ message: 'Capturing face...', type: 'info' });
 
-    const storedDescriptors = studentsResult.data.map(student => ({
-      ...student,
-      descriptor: JSON.parse(student.faceDescriptor), // Parse to array
-      matricNumber: student.matricNumber,
-      firstName: student.firstName,
-      surname: student.surname,
-      studentId: student.$id
-    }));
+    try {
+      if (!faceRecognition || !modelsLoaded) {
+        setStatus({ message: 'Loading face recognition models...', type: 'info' });
+        const faceRec = (await import('@/lib/face-recognition-browser')).default;
+        setFaceRecognition(faceRec);
+        const loadResult = await faceRec.loadModels();
+        if (!loadResult.success) throw new Error('Failed to load face recognition models');
+        setModelsLoaded(true);
+      }
 
-    setStatus({ message: 'Finding match...', type: 'info' });
-    
-    // CRITICAL FIX: Use the corrected verifyFace method
-    // You can use either verifyFace or verifyFaceWithMatcher
-    // verifyFaceWithMatcher is more accurate but slightly slower
-    const verifyResult = await faceRecognition.verifyFaceWithMatcher(
-      extractResult.descriptor, 
-      storedDescriptors
-    );
+      const capturedImageBase64 = captureFaceImage();
+      if (!capturedImageBase64) throw new Error('Failed to capture image');
 
-    setProgress({ current: 100, total: 100 });
+      setProgress({ current: 20, total: 100 });
+      setStatus({ message: 'Analyzing face features...', type: 'info' });
+      
+      const extractResult = await faceRecognition.extractDescriptor(capturedImageBase64);
+      if (!extractResult.success) throw new Error(extractResult.message || 'Failed to detect face');
 
-    if (verifyResult.success && verifyResult.matched) {
-      setVerificationResult({
-        matched: true,
-        student: verifyResult.student,
-        confidence: verifyResult.confidence,
-        distance: verifyResult.distance,
-        matchTime: new Date().toLocaleTimeString(),
-        verificationType: 'Face Recognition',
-        method: 'FaceAPI_Browser',
-        threshold: faceRecognition.getThreshold()
-      });
-      setStatus({ message: 'Match found!', type: 'success' });
-      stopCamera();
-      try {
-        new Audio('/sounds/success.mp3').play().catch(() => {});
-      } catch (e) {}
-    } else {
-      setVerificationResult({
-        matched: false,
-        message: verifyResult.message || 'No matching student found',
-        bestDistance: verifyResult.bestDistance
-      });
-      setStatus({ message: 'No match found', type: 'error' });
-      try {
-        new Audio('/sounds/error.mp3').play().catch(() => {});
-      } catch (e) {}
+      console.log(`✅ Face detected (confidence: ${extractResult.confidence}%)`);
+      setProgress({ current: 40, total: 100 });
+
+      setStatus({ message: 'Loading database...', type: 'info' });
+      const { getStudentsWithFaceDescriptors } = await import('@/lib/appwrite');
+      const studentsResult = await getStudentsWithFaceDescriptors();
+
+      if (!studentsResult.success || studentsResult.data.length === 0) {
+        setVerificationResult({ matched: false, message: 'No registered faces in database' });
+        setStatus({ message: 'No registered faces', type: 'warning' });
+        setIsVerifying(false);
+        setProgress({ current: 0, total: 0 });
+        return;
+      }
+
+      const totalStudents = studentsResult.data.length;
+      setProgress({ current: 60, total: 100 });
+      setStatus({ message: `Comparing against ${totalStudents} faces...`, type: 'info' });
+
+      const storedDescriptors = studentsResult.data.map(student => ({
+        ...student,
+        descriptor: JSON.parse(student.faceDescriptor),
+        matricNumber: student.matricNumber,
+        firstName: student.firstName,
+        surname: student.surname,
+        studentId: student.$id
+      }));
+
+      setStatus({ message: 'Finding match...', type: 'info' });
+      
+      const verifyResult = await faceRecognition.verifyFaceWithMatcher(
+        extractResult.descriptor, 
+        storedDescriptors
+      );
+
+      setProgress({ current: 100, total: 100 });
+
+      if (verifyResult.success && verifyResult.matched) {
+        setVerificationResult({
+          matched: true,
+          student: verifyResult.student,
+          confidence: verifyResult.confidence,
+          distance: verifyResult.distance,
+          matchTime: new Date().toLocaleTimeString(),
+          verificationType: 'Face Recognition',
+          method: 'FaceAPI_Browser',
+          threshold: faceRecognition.getThreshold()
+        });
+        setStatus({ message: 'Match found!', type: 'success' });
+        stopCamera();
+        try {
+          new Audio('/sounds/success.mp3').play().catch(() => {});
+        } catch (e) {}
+      } else {
+        setVerificationResult({
+          matched: false,
+          message: verifyResult.message || 'No matching student found',
+          bestDistance: verifyResult.bestDistance
+        });
+        setStatus({ message: 'No match found', type: 'error' });
+        try {
+          new Audio('/sounds/error.mp3').play().catch(() => {});
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error('❌ Face verification error:', err);
+      setErrorMessage(err.message);
+      setStatus({ message: err.message || 'Verification failed', type: 'error' });
+      setVerificationResult({ matched: false, message: err.message || 'Verification failed' });
+    } finally {
+      setIsVerifying(false);
+      setProgress({ current: 0, total: 0 });
     }
-  } catch (err) {
-    console.error('❌ Face verification error:', err);
-    setErrorMessage(err.message);
-    setStatus({ message: err.message || 'Verification failed', type: 'error' });
-    setVerificationResult({ matched: false, message: err.message || 'Verification failed' });
-  } finally {
-    setIsVerifying(false);
-    setProgress({ current: 0, total: 0 });
-  }
-};
+  };
 
-
-  // Fingerprint verification (UNCHANGED)
+  // ⭐ OPTIMIZED: Fingerprint verification with caching
   const handleFingerprintVerification = async () => {
     if (!fingerprintScanner) {
       setStatus({ message: 'Scanner not initialized', type: 'error' });
@@ -230,23 +271,29 @@ const handleFaceVerification = async () => {
 
     setIsVerifying(true);
     setVerificationResult(null);
-    setProgress({ current: 0, total: 0 });
+    setProgress({ current: 0, total: 100 });
     setErrorMessage('');
     setStatus({ message: 'Place your finger on the scanner...', type: 'info' });
 
     try {
+      // Step 1: Capture fingerprint
       const captureResult = await fingerprintScanner.capturePNG('Verification');
       if (!captureResult.success) throw new Error(captureResult.error);
 
       if (captureResult.quality < 50) {
-        setStatus({ message: `Quality too low (${captureResult.quality}%). Please try again.`, type: 'warning' });
+        setStatus({ 
+          message: `Quality too low (${captureResult.quality}%). Please try again.`, 
+          type: 'warning' 
+        });
         setIsVerifying(false);
         return;
       }
 
+      setProgress({ current: 20, total: 100 });
       setStatus({ message: 'Loading database...', type: 'info' });
-      const { getStudentsWithFingerprintsPNG } = await import('@/lib/appwrite');
-      const fingerprintsResult = await getStudentsWithFingerprintsPNG();
+
+      // ⭐ Step 2: Get fingerprints from cache
+      const fingerprintsResult = await getFingerprintsWithCache();
 
       if (!fingerprintsResult.success) throw new Error('Failed to fetch fingerprints');
       if (fingerprintsResult.data.length === 0) {
@@ -257,9 +304,15 @@ const handleFaceVerification = async () => {
       }
 
       const totalFingerprints = fingerprintsResult.data.length;
-      setProgress({ current: 0, total: totalFingerprints });
-      setStatus({ message: `Comparing against ${totalFingerprints} fingerprints...`, type: 'info' });
+      setProgress({ current: 40, total: 100 });
+      setStatus({ 
+        message: `Comparing against ${totalFingerprints} fingerprint(s)...`, 
+        type: 'info' 
+      });
 
+      // ⭐ Step 3: Single batch API call
+      const verificationStart = Date.now();
+      
       const response = await fetch('/api/fingerprint/verify-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -277,8 +330,15 @@ const handleFaceVerification = async () => {
         })
       });
 
+      setProgress({ current: 80, total: 100 });
+
       if (!response.ok) throw new Error(`Verification failed: ${response.status}`);
       const result = await response.json();
+
+      const verificationTime = ((Date.now() - verificationStart) / 1000).toFixed(2);
+      console.log(`⚡ Verification completed in ${verificationTime}s`);
+
+      setProgress({ current: 100, total: 100 });
 
       if (result.success && result.matched && result.bestMatch) {
         setVerificationResult({
@@ -288,9 +348,10 @@ const handleFaceVerification = async () => {
           score: result.bestMatch.score,
           fingerName: result.bestMatch.fingerName,
           verificationType: 'Fingerprint (NBIS)',
-          method: 'NIST_NBIS'
+          method: result.method || 'NIST_NBIS',
+          verificationTime: verificationTime
         });
-        setStatus({ message: 'Match found!', type: 'success' });
+        setStatus({ message: `Match found in ${verificationTime}s!`, type: 'success' });
         try {
           new Audio('/sounds/success.mp3').play().catch(() => {});
         } catch (e) {}
@@ -298,7 +359,8 @@ const handleFaceVerification = async () => {
         setVerificationResult({
           matched: false,
           message: `No match found. Best score: ${result.bestMatch?.score || 0}`,
-          totalCompared: result.totalCompared
+          totalCompared: result.totalCompared,
+          verificationTime: verificationTime
         });
         setStatus({ message: 'No match found', type: 'error' });
         try {
@@ -346,7 +408,10 @@ const handleFaceVerification = async () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4" onClick={() => router.push("/Admin")}>
+          <button 
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4" 
+            onClick={() => router.push("/Admin")}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -356,9 +421,19 @@ const handleFaceVerification = async () => {
             <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
-            <span>Student Identity Verification</span>
+            <span>⚡ Optimized Identity Verification</span>
           </h1>
-          <p className="text-gray-600 mt-2">Verify student identity using biometric authentication</p>
+          <p className="text-gray-600 mt-2">
+            Fast biometric authentication with intelligent caching
+          </p>
+          
+          {/* ⭐ Cache status indicator */}
+          {fingerprintCache && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-full text-sm text-green-700">
+              <CheckCircle className="w-4 h-4" />
+              Database cached: {fingerprintCache.data.length} fingerprints ready
+            </div>
+          )}
         </div>
 
         {errorMessage && (
@@ -390,28 +465,58 @@ const handleFaceVerification = async () => {
               <span>{progress.current}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${progress.current}%` }} />
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${progress.current}%` }} 
+              />
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Panel - Verification Method */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Verification Method</h2>
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">Select Verification Method *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Select Verification Method *
+              </label>
               <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => { setVerificationType('Fingerprint'); stopCamera(); }}
-                  className={`p-6 border-2 rounded-xl transition-all ${verificationType === 'Fingerprint' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400'}`}>
-                  <Fingerprint className={`w-12 h-12 mx-auto mb-3 ${verificationType === 'Fingerprint' ? 'text-indigo-600' : 'text-gray-400'}`} />
-                  <span className={`font-semibold ${verificationType === 'Fingerprint' ? 'text-indigo-600' : 'text-gray-700'}`}>Fingerprint</span>
+                <button 
+                  onClick={() => { setVerificationType('Fingerprint'); stopCamera(); }}
+                  className={`p-6 border-2 rounded-xl transition-all ${
+                    verificationType === 'Fingerprint' 
+                      ? 'border-indigo-600 bg-indigo-50' 
+                      : 'border-gray-300 hover:border-indigo-400'
+                  }`}
+                >
+                  <Fingerprint className={`w-12 h-12 mx-auto mb-3 ${
+                    verificationType === 'Fingerprint' ? 'text-indigo-600' : 'text-gray-400'
+                  }`} />
+                  <span className={`font-semibold ${
+                    verificationType === 'Fingerprint' ? 'text-indigo-600' : 'text-gray-700'
+                  }`}>
+                    Fingerprint
+                  </span>
                 </button>
-                <button onClick={() => setVerificationType('Face')}
-                  className={`p-6 border-2 rounded-xl transition-all ${verificationType === 'Face' ? 'border-purple-600 bg-purple-50' : 'border-gray-300 hover:border-purple-400'}`}>
-                  <svg className={`w-12 h-12 mx-auto mb-3 ${verificationType === 'Face' ? 'text-purple-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button 
+                  onClick={() => setVerificationType('Face')}
+                  className={`p-6 border-2 rounded-xl transition-all ${
+                    verificationType === 'Face' 
+                      ? 'border-purple-600 bg-purple-50' 
+                      : 'border-gray-300 hover:border-purple-400'
+                  }`}
+                >
+                  <svg className={`w-12 h-12 mx-auto mb-3 ${
+                    verificationType === 'Face' ? 'text-purple-600' : 'text-gray-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className={`font-semibold ${verificationType === 'Face' ? 'text-purple-600' : 'text-gray-700'}`}>Face Recognition</span>
+                  <span className={`font-semibold ${
+                    verificationType === 'Face' ? 'text-purple-600' : 'text-gray-700'
+                  }`}>
+                    Face Recognition
+                  </span>
                 </button>
               </div>
             </div>
@@ -422,20 +527,24 @@ const handleFaceVerification = async () => {
                   <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
                   {!cameraActive && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
-                      <p className="text-white text-sm text-center px-4">Camera will activate when you click "Start Verification"</p>
+                      <p className="text-white text-sm text-center px-4">
+                        Camera will activate when you click "Start Verification"
+                      </p>
                     </div>
                   )}
                   {isVerifying && (
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
-                      <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${progress.current}%` }} />
+                      <div 
+                        className="h-full bg-green-500 transition-all duration-300" 
+                        style={{ width: `${progress.current}%` }} 
+                      />
                     </div>
                   )}
                 </div>
                 <canvas ref={canvasRef} className="hidden" />
-                <p className="text-xs text-gray-500 mt-2 text-center">💡 Tip: Ensure good lighting and face the camera directly</p>
-                <div className="mt-3 p-2 bg-purple-50 rounded text-xs text-purple-800">
-                  🔒 <strong>Privacy:</strong> Face-api.js runs entirely in your browser - no images sent to external servers
-                </div>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  💡 Tip: Ensure good lighting and face the camera directly
+                </p>
               </div>
             )}
 
@@ -454,19 +563,27 @@ const handleFaceVerification = async () => {
               </div>
             )}
 
-            <button onClick={handleStartVerification} disabled={isVerifying || !verificationType}
+            <button 
+              onClick={handleStartVerification} 
+              disabled={isVerifying || !verificationType}
               className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
-                isVerifying || !verificationType ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg'
-              }`}>
+                isVerifying || !verificationType 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg'
+              }`}
+            >
               {isVerifying ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="animate-spin h-5 w-5" />
-                  {verificationType === 'Fingerprint' ? 'Verifying fingerprint...' : `Verifying face... ${progress.current}%`}
+                  {verificationType === 'Fingerprint' 
+                    ? 'Verifying fingerprint...' 
+                    : `Verifying face... ${progress.current}%`}
                 </span>
               ) : cameraActive ? 'Capture & Verify' : 'Start Verification'}
             </button>
           </div>
 
+          {/* Right Panel - Results */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Verification Result</h2>
 
@@ -487,7 +604,17 @@ const handleFaceVerification = async () => {
                 </div>
                 <h3 className="text-2xl font-bold text-red-600 mb-2">No Match Found</h3>
                 <p className="text-gray-600 text-center mb-6 px-4">{verificationResult.message}</p>
-                <button onClick={resetVerification} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Try Again</button>
+                {verificationResult.verificationTime && (
+                  <p className="text-sm text-gray-500 mb-4">
+                    Verification time: {verificationResult.verificationTime}s
+                  </p>
+                )}
+                <button 
+                  onClick={resetVerification} 
+                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Try Again
+                </button>
               </div>
             )}
 
@@ -501,14 +628,23 @@ const handleFaceVerification = async () => {
                     <div>
                       <p className="text-green-600 font-semibold text-lg">Verification Successful!</p>
                       <p className="text-green-600 text-sm">Confidence: {verificationResult.confidence}%</p>
-                      {verificationResult.fingerName && <p className="text-green-600 text-xs">Matched: {verificationResult.fingerName} finger</p>}
+                      {verificationResult.verificationTime && (
+                        <p className="text-green-600 text-xs">⚡ Time: {verificationResult.verificationTime}s</p>
+                      )}
+                      {verificationResult.fingerName && (
+                        <p className="text-green-600 text-xs">Matched: {verificationResult.fingerName} finger</p>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl">
                   {verificationResult.student.profilePictureUrl ? (
-                    <img src={verificationResult.student.profilePictureUrl} alt="Student" className="w-24 h-24 rounded-lg object-cover border-4 border-white shadow-lg" />
+                    <img 
+                      src={verificationResult.student.profilePictureUrl} 
+                      alt="Student" 
+                      className="w-24 h-24 rounded-lg object-cover border-4 border-white shadow-lg" 
+                    />
                   ) : (
                     <div className="w-24 h-24 rounded-lg bg-gray-200 border-4 border-white shadow-lg flex items-center justify-center">
                       <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -522,8 +658,12 @@ const handleFaceVerification = async () => {
                     </h3>
                     <p className="text-indigo-600 font-semibold">{verificationResult.student.matricNumber}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">{verificationResult.student.level} Level</span>
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">{verificationResult.verificationType}</span>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        {verificationResult.student.level} Level
+                      </span>
+                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                        {verificationResult.verificationType}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -540,11 +680,19 @@ const handleFaceVerification = async () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-4">
-                  <button onClick={handleAllowEntry} className="py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center gap-2">
+                  <button 
+                    onClick={handleAllowEntry} 
+                    className="py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center gap-2"
+                  >
                     <CheckCircle className="w-5 h-5" />
                     Allow Entry
                   </button>
-                  <button onClick={resetVerification} className="py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold">Next Student</button>
+                  <button 
+                    onClick={resetVerification} 
+                    className="py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
+                  >
+                    Next Student
+                  </button>
                 </div>
               </div>
             )}

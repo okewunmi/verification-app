@@ -1,5 +1,4 @@
 // app/api/fingerprint/compare/route.js
-// Updated to use NIST NBIS server for accurate matching
 
 import { NextResponse } from 'next/server';
 

@@ -1,5 +1,3 @@
-
-
 // app/api/fingerprint/verify-batch/route.js
 import { NextResponse } from 'next/server';
 
