@@ -4,8 +4,8 @@ import { MdLogin, MdEmail, MdLock, MdVisibility, MdVisibilityOff } from 'react-i
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { adminLogin } from '@/lib/appwrite';
-import { useAuthStore } from '@/lib/useAuth';                
+import { adminLogin } from '../../../lib/appwrite';
+import { useAuthStore } from '../../../lib/useAuth';                
 
 
 export default function AdminLoginPage() {

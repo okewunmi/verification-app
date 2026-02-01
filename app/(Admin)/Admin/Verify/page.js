@@ -36,7 +36,9 @@ export default function ExamVerificationInterface() {
     
     const loadFaceRecognition = async () => {
       try {
-        const faceRec = (await import('@/lib/face-recognition-browser')).default;
+        // const faceRec = (await import('@/lib/face-recognition-browser')).default;
+        const faceRec = await import('@/lib/face-recognition-browser').then(m => m.default);
+
         setFaceRecognition(faceRec);
         const result = await faceRec.loadModels();
         if (result.success) {
