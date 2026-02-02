@@ -35,8 +35,12 @@ export default function StudentManagement() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedFingers, setCapturedFingers] = useState({});
   const [captureStatus, setCaptureStatus] = useState(null);
-  // const [scannerReady, setScannerReady] = useState(false);
-  // Use a Ref to hold the actual initialization status (survives HMR)
+  const [showCameraModal, setShowCameraModal] = useState(false);
+const [cameraReady, setCameraReady] = useState(false);
+const [capturedPhoto, setCapturedPhoto] = useState(null);
+const videoRef = useRef(null);
+const canvasRef = useRef(null);
+const streamRef = useRef(null);
   const scannerInitializedRef = useRef(false);
   const [scannerStatus, setScannerStatus] = useState({
     ready: false,
@@ -609,6 +613,96 @@ export default function StudentManagement() {
     setSelectedStudent(null);
   };
 
+  // Start camera when modal opens
+useEffect(() => {
+  if (showCameraModal && !capturedPhoto) {
+    startCamera();
+  }
+  
+  return () => {
+    stopCamera();
+  };
+}, [showCameraModal]);
+
+const startCamera = async () => {
+  try {
+    setCameraReady(false);
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: 'user' // Front camera
+      }
+    });
+    
+    streamRef.current = stream;
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      setCameraReady(true);
+    }
+  } catch (error) {
+    console.error('Camera error:', error);
+    showNotification('Failed to access camera: ' + error.message, 'error');
+  }
+};
+
+const stopCamera = () => {
+  if (streamRef.current) {
+    streamRef.current.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+  }
+  setCameraReady(false);
+};
+
+const capturePhoto = () => {
+  if (!videoRef.current || !canvasRef.current) return;
+  
+  const video = videoRef.current;
+  const canvas = canvasRef.current;
+  
+  // Set canvas dimensions to match video
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  
+  // Draw video frame to canvas
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  // Convert to base64
+  const photoData = canvas.toDataURL('image/jpeg', 0.9);
+  setCapturedPhoto(photoData);
+  
+  // Stop camera
+  stopCamera();
+};
+
+const retakePhoto = () => {
+  setCapturedPhoto(null);
+  startCamera();
+};
+
+const usePhoto = async () => {
+  // Convert base64 to File object
+  const response = await fetch(capturedPhoto);
+  const blob = await response.blob();
+  const file = new File([blob], `profile_${Date.now()}.jpg`, { type: 'image/jpeg' });
+  
+  // Update form data
+  setFormData({ ...formData, profilePicture: file });
+  setProfilePreview(capturedPhoto);
+  
+  // Close camera modal
+  closeCameraModal();
+  
+  showNotification('Photo captured successfully!', 'success');
+};
+
+const closeCameraModal = () => {
+  stopCamera();
+  setCapturedPhoto(null);
+  setShowCameraModal(false);
+};
+
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       student.matricNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -636,6 +730,7 @@ export default function StudentManagement() {
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6 lg:p-8">
@@ -1134,32 +1229,10 @@ export default function StudentManagement() {
 
               <form onSubmit={handleSubmit} className="p-6">
                 {/* Profile Picture */}
-                {/*
-                <div className="mb-6 text-center">
-                  <div className="inline-block relative">
-                    <img
-                      src={profilePreview || 'https://via.placeholder.com/150'}
-                      alt="Profile"
-                      className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
-                    />
-                    <label className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full cursor-pointer hover:bg-indigo-700">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">Click camera icon to upload photo (Max 5MB)</p>
-                </div>
-                */}
+                
+                
                 {/* Profile Picture - LIVE CAMERA CAPTURE */}
-                <div className="mb-6">
+                {/* <div className="mb-6">
                   <div className="text-center">
                     <div className="inline-block relative">
                       <img
@@ -1204,7 +1277,48 @@ export default function StudentManagement() {
                       Tap camera to capture photo
                     </p>
                   </div>
-                </div>
+                </div> */}
+                {/* Profile Picture - LIVE CAMERA CAPTURE + FILE UPLOAD */}
+<div className="mb-6">
+  <div className="text-center">
+    <div className="inline-block relative">
+      <img
+        src={profilePreview || "https://via.placeholder.com/150"}
+        alt="Profile"
+        className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
+      />
+      <div className="absolute bottom-0 right-0 flex gap-2">
+        {/* Live Camera Button */}
+        <button
+          type="button"
+          onClick={() => setShowCameraModal(true)}
+          className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition-colors"
+          title="Take Photo"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        </button>
+        
+        {/* File Upload Button */}
+        <label className="bg-indigo-600 text-white p-2 rounded-full cursor-pointer hover:bg-indigo-700 transition-colors" title="Upload Photo">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </label>
+      </div>
+    </div>
+    <p className="text-sm text-gray-500 mt-2">
+      Take a photo or upload from device
+    </p>
+  </div>
+</div>
                 {/* Form Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -1668,6 +1782,100 @@ export default function StudentManagement() {
             </div>
           </div>
         )}
+        {/* Camera Capture Modal */}
+{showCameraModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl max-w-2xl w-full">
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 rounded-t-2xl">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">Take Photo</h2>
+          <button
+            onClick={closeCameraModal}
+            className="text-white hover:text-gray-200"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="p-6">
+        {!capturedPhoto ? (
+          <>
+            {/* Video Preview */}
+            <div className="relative bg-black rounded-lg overflow-hidden mb-4">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full h-96 object-cover"
+              />
+              {/* Camera not ready overlay */}
+              {!cameraReady && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                  <div className="text-center text-white">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-3"></div>
+                    <p>Starting camera...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Capture Button */}
+            <div className="text-center">
+              <button
+                onClick={capturePhoto}
+                disabled={!cameraReady}
+                className={`px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold shadow-lg ${
+                  !cameraReady ? 'opacity-50 cursor-not-allowed' : 'hover:from-purple-700 hover:to-indigo-700'
+                }`}
+              >
+                <span className="flex items-center space-x-2">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>Capture Photo</span>
+                </span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Captured Photo Preview */}
+            <div className="mb-4">
+              <img
+                src={capturedPhoto}
+                alt="Captured"
+                className="w-full h-96 object-cover rounded-lg"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-center space-x-4">
+              <button
+                onClick={retakePhoto}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              >
+                Retake
+              </button>
+              <button
+                onClick={usePhoto}
+                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg font-semibold"
+              >
+                Use This Photo
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+
+    {/* Hidden Canvas for Capture */}
+    <canvas ref={canvasRef} className="hidden" />
+  </div>
+)}
       </div>
     </div>
   );
