@@ -1899,7 +1899,7 @@ export default function OptimizedExamVerification() {
               </div>
             )}
 
-            {verificationResult && verificationResult.matched && (
+            {/* {verificationResult && verificationResult.matched && (
               <div className="space-y-6">
                 <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
                   <div className="flex items-center justify-center space-x-3">
@@ -1976,7 +1976,106 @@ export default function OptimizedExamVerification() {
                   </button>
                 </div>
               </div>
-            )}
+            )} */}
+            {/* FULL-SCREEN SUCCESS OVERLAY */}
+{/* SUCCESS - MATCH FOUND */}
+{verificationResult && verificationResult.matched && verificationResult.student && (
+  <div className="text-center py-8">
+    {/* LARGE PROFILE PICTURE */}
+    <div className="mb-6">
+      <div className="relative inline-block">
+        <img
+          src={
+            verificationResult.student.profilePictureUrl &&
+            verificationResult.student.profilePictureUrl.trim() !== ""
+              ? verificationResult.student.profilePictureUrl
+              : "https://via.placeholder.com/300"
+          }
+          alt={verificationResult.student.firstName}
+          className="w-64 h-64 rounded-2xl object-cover border-8 border-green-500 shadow-2xl mx-auto"
+          onError={(e) => {
+            e.target.src = "https://via.placeholder.com/300";
+          }}
+        />
+        {/* Success Badge */}
+        <div className="absolute -top-4 -right-4 bg-green-500 text-white p-4 rounded-full shadow-lg">
+          <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    {/* Student Info */}
+    <div className="bg-green-50 rounded-2xl p-8 border-4 border-green-200">
+      <h3 className="text-4xl font-bold text-green-800 mb-3">
+        ✓ MATCH FOUND!
+      </h3>
+      
+      <div className="space-y-3 text-left max-w-md mx-auto">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <p className="text-sm text-gray-600 mb-1">Full Name</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {verificationResult.student.firstName}{" "}
+            {verificationResult.student.middleName}{" "}
+            {verificationResult.student.surname}
+          </p>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow">
+          <p className="text-sm text-gray-600 mb-1">Matric Number</p>
+          <p className="text-2xl font-mono font-bold text-indigo-600">
+            {verificationResult.student.matricNumber}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-sm text-gray-600 mb-1">Department</p>
+            <p className="font-semibold text-gray-900">
+              {verificationResult.student.department}
+            </p>
+          </div>
+
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-sm text-gray-600 mb-1">Level</p>
+            <p className="font-semibold text-gray-900">
+              {verificationResult.student.level}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow">
+          <p className="text-sm text-gray-600 mb-1">Match Confidence</p>
+          <div className="flex items-center space-x-3">
+            <div className="flex-1 bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${verificationResult.confidence}%` }}
+              ></div>
+            </div>
+            <span className="text-xl font-bold text-green-600">
+              {verificationResult.confidence}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Action Buttons */}
+    <div className="mt-6 flex items-center justify-center space-x-4">
+      <button
+        onClick={() => {
+          setVerificationResult(null);
+          setIsVerifying(false);
+        }}
+        className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg font-semibold"
+      >
+        Verify Another Student
+      </button>
+    </div>
+  </div>
+)}
           </div>
         </div>
       </div>
