@@ -21,7 +21,7 @@ export default function OptimizedExamVerification() {
   const [faceRecognition, setFaceRecognition] = useState(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false); // Real-time face detection indicator
-  
+
   // Caching
   const [fingerprintCache, setFingerprintCache] = useState(null);
   const [cacheTimestamp, setCacheTimestamp] = useState(null);
@@ -40,7 +40,7 @@ export default function OptimizedExamVerification() {
   // Real-time face detection preview
   useEffect(() => {
     let animationFrameId;
-    
+
     const detectFaceInRealTime = async () => {
       if (!cameraActive || !videoRef.current || !faceRecognition || !modelsLoaded) {
         return;
@@ -48,7 +48,7 @@ export default function OptimizedExamVerification() {
 
       const video = videoRef.current;
       const overlay = overlayCanvasRef.current;
-      
+
       if (!overlay || video.readyState !== video.HAVE_ENOUGH_DATA) {
         animationFrameId = requestAnimationFrame(detectFaceInRealTime);
         return;
@@ -58,23 +58,23 @@ export default function OptimizedExamVerification() {
         // Set overlay dimensions to match video
         overlay.width = video.videoWidth;
         overlay.height = video.videoHeight;
-        
+
         const ctx = overlay.getContext('2d');
         ctx.clearRect(0, 0, overlay.width, overlay.height);
 
         // Detect face using face-api
         const faceapi = window.faceapi;
         const detection = await faceapi.detectSingleFace(video);
-        
+
         if (detection) {
           setFaceDetected(true);
-          
+
           // Draw bounding box
           const box = detection.box;
           ctx.strokeStyle = '#10b981'; // Green
           ctx.lineWidth = 3;
           ctx.strokeRect(box.x, box.y, box.width, box.height);
-          
+
           // Draw confidence
           const confidence = Math.round(detection.score * 100);
           ctx.fillStyle = '#10b981';
@@ -88,7 +88,7 @@ export default function OptimizedExamVerification() {
       } catch (error) {
         // Silent fail for real-time detection
       }
-      
+
       animationFrameId = requestAnimationFrame(detectFaceInRealTime);
     };
 
@@ -120,14 +120,14 @@ export default function OptimizedExamVerification() {
         console.error('Scanner load error:', error);
       }
     };
-    
+
     const loadFaceRecognition = async () => {
       try {
         const faceRec = await import('@/lib/face-recognition-browser').then(m => m.default);
         if (!mounted) return;
-        
+
         setFaceRecognition(faceRec);
-        
+
         const loadWithRetry = async (attempts = 3) => {
           for (let i = 0; i < attempts; i++) {
             try {
@@ -150,18 +150,18 @@ export default function OptimizedExamVerification() {
         };
 
         await loadWithRetry();
-        
+
       } catch (error) {
         console.error('Face recognition load error:', error);
         if (mounted) {
-          setStatus({ 
-            message: 'Face recognition unavailable. Please refresh the page.', 
-            type: 'error' 
+          setStatus({
+            message: 'Face recognition unavailable. Please refresh the page.',
+            type: 'error'
           });
         }
       }
     };
-    
+
     loadScanner();
     loadFaceRecognition();
     preloadFingerprintDatabase();
@@ -179,7 +179,7 @@ export default function OptimizedExamVerification() {
       console.log('🔄 Pre-loading fingerprint database...');
       const { getStudentsWithFingerprintsPNG } = await import('@/lib/appwrite');
       const result = await getStudentsWithFingerprintsPNG();
-      
+
       if (result.success) {
         setFingerprintCache(result);
         setCacheTimestamp(Date.now());
@@ -192,21 +192,21 @@ export default function OptimizedExamVerification() {
 
   const getFingerprintsWithCache = async () => {
     const now = Date.now();
-    
+
     if (fingerprintCache && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION)) {
       console.log('💾 Using cached fingerprint database');
       return fingerprintCache;
     }
-    
+
     console.log('📥 Fetching fresh fingerprint database...');
     const { getStudentsWithFingerprintsPNG } = await import('@/lib/appwrite');
     const result = await getStudentsWithFingerprintsPNG();
-    
+
     if (result.success) {
       setFingerprintCache(result);
       setCacheTimestamp(now);
     }
-    
+
     return result;
   };
 
@@ -230,32 +230,32 @@ export default function OptimizedExamVerification() {
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user', 
-          width: { ideal: 1280 }, 
-          height: { ideal: 720 } 
-        } 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       });
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        
+
         await new Promise((resolve) => {
           videoRef.current.onloadedmetadata = () => {
             videoRef.current.play();
             resolve();
           };
         });
-        
+
         await new Promise(resolve => setTimeout(resolve, 500));
       }
-      
+
       setStream(mediaStream);
       setCameraActive(true);
       setErrorMessage('');
       setStatus({ message: '✅ Camera ready - position your face in frame', type: 'success' });
-      
+
       console.log('✅ Camera fully initialized and ready');
     } catch (err) {
       console.error('Camera access error:', err);
@@ -298,9 +298,9 @@ export default function OptimizedExamVerification() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const imageData = canvas.toDataURL('image/jpeg', 0.95);
-    
+
     console.log('📸 Captured image size:', imageData.length, 'bytes');
-    
+
     return imageData;
   };
 
@@ -343,7 +343,7 @@ export default function OptimizedExamVerification() {
         }
 
         const capturedImageBase64 = await captureFaceImage();
-        
+
         if (!capturedImageBase64) {
           throw new Error('Failed to capture image from video');
         }
@@ -367,9 +367,9 @@ export default function OptimizedExamVerification() {
         const studentsResult = await getStudentsWithFaceDescriptors();
 
         if (!studentsResult.success || studentsResult.data.length === 0) {
-          setVerificationResult({ 
-            matched: false, 
-            message: '⚠️ No registered faces in database. Please register students first.' 
+          setVerificationResult({
+            matched: false,
+            message: '⚠️ No registered faces in database. Please register students first.'
           });
           setStatus({ message: 'No registered faces found', type: 'warning' });
           setErrorMessage('Database is empty. Please register student faces in the Admin panel first.');
@@ -413,8 +413,8 @@ export default function OptimizedExamVerification() {
           stopCamera();
 
           try {
-            new Audio('/sounds/success.mp3').play().catch(() => {});
-          } catch {}
+            new Audio('/sounds/success.mp3').play().catch(() => { });
+          } catch { }
 
           break;
         } else {
@@ -426,8 +426,8 @@ export default function OptimizedExamVerification() {
           setStatus({ message: 'No match found', type: 'error' });
 
           try {
-            new Audio('/sounds/error.mp3').play().catch(() => {});
-          } catch {}
+            new Audio('/sounds/error.mp3').play().catch(() => { });
+          } catch { }
 
           break;
         }
@@ -481,9 +481,9 @@ export default function OptimizedExamVerification() {
       if (!captureResult.success) throw new Error(captureResult.error);
 
       if (captureResult.quality < 50) {
-        setStatus({ 
-          message: `Quality too low (${captureResult.quality}%). Please try again.`, 
-          type: 'warning' 
+        setStatus({
+          message: `Quality too low (${captureResult.quality}%). Please try again.`,
+          type: 'warning'
         });
         setIsVerifying(false);
         return;
@@ -504,13 +504,13 @@ export default function OptimizedExamVerification() {
 
       const totalFingerprints = fingerprintsResult.data.length;
       setProgress({ current: 40, total: 100 });
-      setStatus({ 
-        message: `Comparing against ${totalFingerprints} fingerprint(s)...`, 
-        type: 'info' 
+      setStatus({
+        message: `Comparing against ${totalFingerprints} fingerprint(s)...`,
+        type: 'info'
       });
 
       const verificationStart = Date.now();
-      
+
       const response = await fetch('/api/fingerprint/verify-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -551,8 +551,8 @@ export default function OptimizedExamVerification() {
         });
         setStatus({ message: `Match found in ${verificationTime}s!`, type: 'success' });
         try {
-          new Audio('/sounds/success.mp3').play().catch(() => {});
-        } catch (e) {}
+          new Audio('/sounds/success.mp3').play().catch(() => { });
+        } catch (e) { }
       } else {
         setVerificationResult({
           matched: false,
@@ -562,8 +562,8 @@ export default function OptimizedExamVerification() {
         });
         setStatus({ message: 'No match found', type: 'error' });
         try {
-          new Audio('/sounds/error.mp3').play().catch(() => {});
-        } catch (e) {}
+          new Audio('/sounds/error.mp3').play().catch(() => { });
+        } catch (e) { }
       }
     } catch (error) {
       console.error('❌ Verification error:', error);
@@ -606,8 +606,8 @@ export default function OptimizedExamVerification() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <button 
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4" 
+          <button
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
             onClick={() => router.push("/Admin")}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -624,7 +624,7 @@ export default function OptimizedExamVerification() {
           <p className="text-gray-600 mt-2">
             Fast biometric authentication with real-time face detection
           </p>
-          
+
           {fingerprintCache && (
             <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-full text-sm text-green-700">
               <CheckCircle className="w-4 h-4" />
@@ -662,9 +662,9 @@ export default function OptimizedExamVerification() {
               <span>{progress.current}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${progress.current}%` }} 
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress.current}%` }}
               />
             </div>
           </div>
@@ -679,39 +679,33 @@ export default function OptimizedExamVerification() {
                 Select Verification Method *
               </label>
               <div className="grid grid-cols-2 gap-4">
-                <button 
+                <button
                   onClick={() => { setVerificationType('Fingerprint'); stopCamera(); }}
-                  className={`p-6 border-2 rounded-xl transition-all ${
-                    verificationType === 'Fingerprint' 
-                      ? 'border-indigo-600 bg-indigo-50' 
+                  className={`p-6 border-2 rounded-xl transition-all ${verificationType === 'Fingerprint'
+                      ? 'border-indigo-600 bg-indigo-50'
                       : 'border-gray-300 hover:border-indigo-400'
-                  }`}
+                    }`}
                 >
-                  <Fingerprint className={`w-12 h-12 mx-auto mb-3 ${
-                    verificationType === 'Fingerprint' ? 'text-indigo-600' : 'text-gray-400'
-                  }`} />
-                  <span className={`font-semibold ${
-                    verificationType === 'Fingerprint' ? 'text-indigo-600' : 'text-gray-700'
-                  }`}>
+                  <Fingerprint className={`w-12 h-12 mx-auto mb-3 ${verificationType === 'Fingerprint' ? 'text-indigo-600' : 'text-gray-400'
+                    }`} />
+                  <span className={`font-semibold ${verificationType === 'Fingerprint' ? 'text-indigo-600' : 'text-gray-700'
+                    }`}>
                     Fingerprint
                   </span>
                 </button>
-                <button 
+                <button
                   onClick={() => setVerificationType('Face')}
-                  className={`p-6 border-2 rounded-xl transition-all ${
-                    verificationType === 'Face' 
-                      ? 'border-purple-600 bg-purple-50' 
+                  className={`p-6 border-2 rounded-xl transition-all ${verificationType === 'Face'
+                      ? 'border-purple-600 bg-purple-50'
                       : 'border-gray-300 hover:border-purple-400'
-                  }`}
+                    }`}
                 >
-                  <svg className={`w-12 h-12 mx-auto mb-3 ${
-                    verificationType === 'Face' ? 'text-purple-600' : 'text-gray-400'
-                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-12 h-12 mx-auto mb-3 ${verificationType === 'Face' ? 'text-purple-600' : 'text-gray-400'
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className={`font-semibold ${
-                    verificationType === 'Face' ? 'text-purple-600' : 'text-gray-700'
-                  }`}>
+                  <span className={`font-semibold ${verificationType === 'Face' ? 'text-purple-600' : 'text-gray-700'
+                    }`}>
                     Face Recognition
                   </span>
                 </button>
@@ -723,7 +717,7 @@ export default function OptimizedExamVerification() {
                 <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
                   <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
                   <canvas ref={overlayCanvasRef} className="absolute top-0 left-0 w-full h-full" />
-                  
+
                   {!cameraActive && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
                       <p className="text-white text-sm text-center px-4">
@@ -731,12 +725,11 @@ export default function OptimizedExamVerification() {
                       </p>
                     </div>
                   )}
-                  
+
                   {cameraActive && (
                     <div className="absolute top-4 right-4">
-                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                        faceDetected ? 'bg-green-500' : 'bg-red-500'
-                      }`}>
+                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${faceDetected ? 'bg-green-500' : 'bg-red-500'
+                        }`}>
                         <Camera className="w-4 h-4 text-white" />
                         <span className="text-white text-sm font-medium">
                           {faceDetected ? 'Face Detected' : 'No Face'}
@@ -744,12 +737,12 @@ export default function OptimizedExamVerification() {
                       </div>
                     </div>
                   )}
-                  
+
                   {isVerifying && (
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
-                      <div 
-                        className="h-full bg-green-500 transition-all duration-300" 
-                        style={{ width: `${progress.current}%` }} 
+                      <div
+                        className="h-full bg-green-500 transition-all duration-300"
+                        style={{ width: `${progress.current}%` }}
                       />
                     </div>
                   )}
@@ -776,20 +769,19 @@ export default function OptimizedExamVerification() {
               </div>
             )}
 
-            <button 
-              onClick={handleStartVerification} 
+            <button
+              onClick={handleStartVerification}
               disabled={isVerifying || !verificationType || (verificationType === 'Face' && cameraActive && !faceDetected)}
-              className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
-                isVerifying || !verificationType || (verificationType === 'Face' && cameraActive && !faceDetected)
-                  ? 'bg-gray-400 cursor-not-allowed' 
+              className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${isVerifying || !verificationType || (verificationType === 'Face' && cameraActive && !faceDetected)
+                  ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg'
-              }`}
+                }`}
             >
               {isVerifying ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="animate-spin h-5 w-5" />
-                  {verificationType === 'Fingerprint' 
-                    ? 'Verifying fingerprint...' 
+                  {verificationType === 'Fingerprint'
+                    ? 'Verifying fingerprint...'
                     : `Verifying face... ${progress.current}%`}
                 </span>
               ) : cameraActive ? (
@@ -826,8 +818,8 @@ export default function OptimizedExamVerification() {
                     Verification time: {verificationResult.verificationTime}s
                   </p>
                 )}
-                <button 
-                  onClick={resetVerification} 
+                <button
+                  onClick={resetVerification}
                   className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                 >
                   Try Again
@@ -914,104 +906,104 @@ export default function OptimizedExamVerification() {
               </div>
             )} */}
             {/* FULL-SCREEN SUCCESS OVERLAY */}
-{/* SUCCESS - MATCH FOUND */}
-{verificationResult && verificationResult.matched && verificationResult.student && (
-  <div className="text-center py-8">
-    {/* LARGE PROFILE PICTURE */}
-    <div className="mb-6">
-      <div className="relative inline-block">
-        <img
-          src={
-            verificationResult.student.profilePictureUrl &&
-            verificationResult.student.profilePictureUrl.trim() !== ""
-              ? verificationResult.student.profilePictureUrl
-              : "https://via.placeholder.com/300"
-          }
-          alt={verificationResult.student.firstName}
-          className="w-64 h-64 rounded-2xl object-cover border-8 border-green-500 shadow-2xl mx-auto"
-          onError={(e) => {
-            e.target.src = "https://via.placeholder.com/300";
-          }}
-        />
-        {/* Success Badge */}
-        <div className="absolute -top-4 -right-4 bg-green-500 text-white p-4 rounded-full shadow-lg">
-          <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-      </div>
-    </div>
+            {/* SUCCESS - MATCH FOUND */}
+            {verificationResult && verificationResult.matched && verificationResult.student && (
+              <div className="text-center py-8">
+                {/* LARGE PROFILE PICTURE */}
+                <div className="mb-6">
+                  <div className="relative inline-block">
+                    <img
+                      src={
+                        verificationResult.student.profilePictureUrl &&
+                          verificationResult.student.profilePictureUrl.trim() !== ""
+                          ? verificationResult.student.profilePictureUrl
+                          : "https://via.placeholder.com/300"
+                      }
+                      alt={verificationResult.student.firstName}
+                      className="w-64 h-64 rounded-2xl object-cover border-8 border-green-500 shadow-2xl mx-auto"
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/300";
+                      }}
+                    />
+                    {/* Success Badge */}
+                    <div className="absolute -top-4 -right-4 bg-green-500 text-white p-4 rounded-full shadow-lg">
+                      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
 
-    {/* Student Info */}
-    <div className="bg-green-50 rounded-2xl p-8 border-4 border-green-200">
-      <h3 className="text-4xl font-bold text-green-800 mb-3">
-        ✓ MATCH FOUND!
-      </h3>
-      
-      <div className="space-y-3 text-left max-w-md mx-auto">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-1">Full Name</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {verificationResult.student.firstName}{" "}
-            {verificationResult.student.middleName}{" "}
-            {verificationResult.student.surname}
-          </p>
-        </div>
+                {/* Student Info */}
+                <div className="bg-green-50 rounded-2xl p-8 border-4 border-green-200">
+                  <h3 className="text-4xl font-bold text-green-800 mb-3">
+                    ✓ MATCH FOUND!
+                  </h3>
 
-        <div className="bg-white p-4 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-1">Matric Number</p>
-          <p className="text-2xl font-mono font-bold text-indigo-600">
-            {verificationResult.student.matricNumber}
-          </p>
-        </div>
+                  <div className="space-y-3 text-left max-w-md mx-auto">
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <p className="text-sm text-gray-600 mb-1">Full Name</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {verificationResult.student.firstName}{" "}
+                        {verificationResult.student.middleName}{" "}
+                        {verificationResult.student.surname}
+                      </p>
+                    </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-sm text-gray-600 mb-1">Department</p>
-            <p className="font-semibold text-gray-900">
-              {verificationResult.student.department}
-            </p>
-          </div>
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <p className="text-sm text-gray-600 mb-1">Matric Number</p>
+                      <p className="text-2xl font-mono font-bold text-indigo-600">
+                        {verificationResult.student.matricNumber}
+                      </p>
+                    </div>
 
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-sm text-gray-600 mb-1">Level</p>
-            <p className="font-semibold text-gray-900">
-              {verificationResult.student.level}
-            </p>
-          </div>
-        </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white p-4 rounded-lg shadow">
+                        <p className="text-sm text-gray-600 mb-1">Department</p>
+                        <p className="font-semibold text-gray-900">
+                          {verificationResult.student.department}
+                        </p>
+                      </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-1">Match Confidence</p>
-          <div className="flex items-center space-x-3">
-            <div className="flex-1 bg-gray-200 rounded-full h-3">
-              <div
-                className="bg-green-500 h-3 rounded-full transition-all duration-500"
-                style={{ width: `${verificationResult.confidence}%` }}
-              ></div>
-            </div>
-            <span className="text-xl font-bold text-green-600">
-              {verificationResult.confidence}%
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+                      <div className="bg-white p-4 rounded-lg shadow">
+                        <p className="text-sm text-gray-600 mb-1">Level</p>
+                        <p className="font-semibold text-gray-900">
+                          {verificationResult.student.level}
+                        </p>
+                      </div>
+                    </div>
 
-    {/* Action Buttons */}
-    <div className="mt-6 flex items-center justify-center space-x-4">
-      <button
-        onClick={() => {
-          setVerificationResult(null);
-          setIsVerifying(false);
-        }}
-        className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg font-semibold"
-      >
-        Verify Another Student
-      </button>
-    </div>
-  </div>
-)}
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <p className="text-sm text-gray-600 mb-1">Match Confidence</p>
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-1 bg-gray-200 rounded-full h-3">
+                          <div
+                            className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                            style={{ width: `${verificationResult.confidence}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xl font-bold text-green-600">
+                          {verificationResult.confidence}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-6 flex items-center justify-center space-x-4">
+                  <button
+                    onClick={() => {
+                      setVerificationResult(null);
+                      setIsVerifying(false);
+                    }}
+                    className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg font-semibold"
+                  >
+                    Verify Another Student
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
