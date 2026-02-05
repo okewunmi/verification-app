@@ -1,15 +1,34 @@
 // app/api/face/extract/route.js
+// Extract face descriptor from base64 image
+
 import { NextResponse } from 'next/server';
 import faceRecognition from '@/lib/face-recognition-browser';
 
-// Load models when the API route is first imported
-await faceRecognition.loadModels();
+// Load models once when the API starts
+let modelsLoaded = false;
+
+async function ensureModelsLoaded() {
+  if (!modelsLoaded) {
+    console.log('🔄 Loading face-api.js models...');
+    const result = await faceRecognition.loadModels();
+    if (result.success) {
+      modelsLoaded = true;
+      console.log('✅ Models loaded successfully');
+    } else {
+      throw new Error('Failed to load face recognition models');
+    }
+  }
+}
 
 export async function POST(request) {
   try {
+    // Ensure models are loaded before processing
+    await ensureModelsLoaded();
+
     const body = await request.json();
     const { image } = body;
 
+    // Validate request
     if (!image) {
       return NextResponse.json({
         success: false,
@@ -17,6 +36,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // Validate image format
     if (!image.startsWith('data:image/')) {
       return NextResponse.json({
         success: false,
@@ -27,6 +47,7 @@ export async function POST(request) {
     console.log('📸 Extracting face descriptor from mobile image...');
     const startTime = Date.now();
 
+    // Use your existing face-recognition-browser.js
     const result = await faceRecognition.extractDescriptor(image);
 
     const processingTime = Date.now() - startTime;
@@ -57,4 +78,12 @@ export async function POST(request) {
       error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
+}
+
+// Handle other methods
+export async function GET(request) {
+  return NextResponse.json({
+    success: false,
+    message: 'Method not allowed. Use POST.'
+  }, { status: 405 });
 }
