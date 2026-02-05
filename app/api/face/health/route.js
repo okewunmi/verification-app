@@ -1,20 +1,29 @@
-// pages/api/face/health.js
-export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ message: 'Method not allowed' });
-  }
+// app/api/face/health/route.js
+// Health check endpoint to verify API is working
 
+import { NextResponse } from 'next/server';
+
+export async function GET(request) {
   try {
-    // Check if face recognition models are loaded
-    res.status(200).json({
+    return NextResponse.json({
       success: true,
       message: 'Face recognition API is healthy',
-      timestamp: new Date().toISOString()
-    });
+      timestamp: new Date().toISOString(),
+      status: 'operational'
+    }, { status: 200 });
   } catch (error) {
-    res.status(500).json({
+    console.error('Health check error:', error);
+    return NextResponse.json({
       success: false,
       message: error.message
-    });
+    }, { status: 500 });
   }
+}
+
+// Optionally handle other methods
+export async function POST(request) {
+  return NextResponse.json({
+    success: false,
+    message: 'Method not allowed. Use GET.'
+  }, { status: 405 });
 }

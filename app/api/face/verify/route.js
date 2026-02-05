@@ -1,30 +1,39 @@
-// pages/api/face/verify.js
+// app/api/face/verify/route.js
+// Verify face descriptor against database of students
+
+import { NextResponse } from 'next/server';
 import faceRecognition from '@/lib/face-recognition-browser';
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
-
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
-  }
-
+export async function POST(request) {
   try {
-    const { inputDescriptor, students } = req.body;
+    const body = await request.json();
+    const { inputDescriptor, students } = body;
 
-    if (!inputDescriptor || !students || !Array.isArray(students)) {
-      return res.status(400).json({
+    // Validate request
+    if (!inputDescriptor) {
+      return NextResponse.json({
         success: false,
-        message: 'Invalid request: inputDescriptor and students array required'
-      });
+        message: 'inputDescriptor is required'
+      }, { status: 400 });
+    }
+
+    if (!students || !Array.isArray(students)) {
+      return NextResponse.json({
+        success: false,
+        message: 'students array is required'
+      }, { status: 400 });
+    }
+
+    if (students.length === 0) {
+      return NextResponse.json({
+        success: true,
+        matched: false,
+        message: 'No students in database to compare against'
+      }, { status: 200 });
     }
 
     console.log(`🔍 Verifying face against ${students.length} students...`);
+    const startTime = Date.now();
 
     // Use your existing face-recognition-browser.js
     const result = await faceRecognition.verifyFaceWithMatcher(
@@ -32,38 +41,62 @@ export default async function handler(req, res) {
       students
     );
 
+    const processingTime = Date.now() - startTime;
+    console.log(`⏱️ Verification time: ${processingTime}ms`);
+
     if (!result.success) {
-      return res.status(400).json({
+      console.log('❌ Verification failed:', result.message);
+      return NextResponse.json({
         success: false,
         message: result.message || 'Verification failed'
-      });
+      }, { status: 400 });
     }
 
     if (!result.matched) {
-      console.log('❌ No match found');
-      return res.status(200).json({
+      console.log('❌ No match found (best distance:', result.bestDistance, ')');
+      return NextResponse.json({
         success: true,
         matched: false,
         message: result.message || 'No matching student found',
-        bestDistance: result.bestDistance
-      });
+        bestDistance: result.bestDistance,
+        processingTime: processingTime
+      }, { status: 200 });
     }
 
-    console.log(`✅ Match found: ${result.student.matricNumber}`);
+    console.log(`✅ Match found: ${result.student.matricNumber} (confidence: ${result.confidence}%)`);
 
-    res.status(200).json({
+    return NextResponse.json({
       success: true,
       matched: true,
       student: result.student,
       confidence: result.confidence,
-      distance: result.distance
-    });
+      distance: result.distance,
+      processingTime: processingTime
+    }, { status: 200 });
 
   } catch (error) {
     console.error('❌ Verify API error:', error);
-    res.status(500).json({
+    return NextResponse.json({
       success: false,
-      message: error.message || 'Internal server error'
-    });
+      message: error.message || 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }
+
+// Handle other methods
+export async function GET(request) {
+  return NextResponse.json({
+    success: false,
+    message: 'Method not allowed. Use POST.'
+  }, { status: 405 });
+}
+
+// Increase body size limit
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
