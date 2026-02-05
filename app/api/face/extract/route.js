@@ -1,34 +1,20 @@
 // app/api/face/extract/route.js
-// Extract face descriptor from base64 image
+// FIXED VERSION - Handles document/window issues
 
 import { NextResponse } from 'next/server';
-import faceRecognition from '@/lib/face-recognition-browser';
 
-// Load models once when the API starts
-let modelsLoaded = false;
-
-async function ensureModelsLoaded() {
-  if (!modelsLoaded) {
-    console.log('🔄 Loading face-api.js models...');
-    const result = await faceRecognition.loadModels();
-    if (result.success) {
-      modelsLoaded = true;
-      console.log('✅ Models loaded successfully');
-    } else {
-      throw new Error('Failed to load face recognition models');
-    }
-  }
-}
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
 
 export async function POST(request) {
   try {
-    // Ensure models are loaded before processing
-    await ensureModelsLoaded();
+    const { image } = await request.json();
 
-    const body = await request.json();
-    const { image } = body;
-
-    // Validate request
     if (!image) {
       return NextResponse.json({
         success: false,
@@ -36,7 +22,6 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Validate image format
     if (!image.startsWith('data:image/')) {
       return NextResponse.json({
         success: false,
@@ -47,26 +32,60 @@ export async function POST(request) {
     console.log('📸 Extracting face descriptor from mobile image...');
     const startTime = Date.now();
 
-    // Use your existing face-recognition-browser.js
-    const result = await faceRecognition.extractDescriptor(image);
+    // Import face-api.js and canvas for Node.js environment
+    const faceapi = await import('face-api.js');
+    const canvas = await import('canvas');
+    const { Canvas, Image, ImageData } = canvas;
+
+    // Patch face-api.js to work with node-canvas
+    faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
+
+    // Load models if not already loaded
+    const modelPath = './public/models'; // Adjust if your models are elsewhere
+    
+    try {
+      await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelPath);
+      await faceapi.nets.faceLandmark68Net.loadFromDisk(modelPath);
+      await faceapi.nets.faceRecognitionNet.loadFromDisk(modelPath);
+      console.log('✅ Models loaded');
+    } catch (modelError) {
+      console.error('❌ Model loading error:', modelError);
+      // Models might already be loaded, continue
+    }
+
+    // Convert base64 to buffer
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Load image using node-canvas
+    const img = await canvas.loadImage(buffer);
+
+    // Detect face and extract descriptor
+    const detection = await faceapi
+      .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
 
     const processingTime = Date.now() - startTime;
     console.log(`⏱️ Processing time: ${processingTime}ms`);
 
-    if (!result.success) {
-      console.log('❌ Face extraction failed:', result.message);
+    if (!detection) {
+      console.log('❌ No face detected');
       return NextResponse.json({
         success: false,
-        message: result.message || 'Failed to extract face descriptor'
+        message: 'No face detected in image'
       }, { status: 400 });
     }
 
-    console.log(`✅ Face extracted successfully (confidence: ${result.confidence}%)`);
+    const descriptor = Array.from(detection.descriptor);
+    const confidence = Math.round(detection.detection.score * 100);
+
+    console.log(`✅ Face extracted successfully (confidence: ${confidence}%)`);
 
     return NextResponse.json({
       success: true,
-      descriptor: result.descriptor,
-      confidence: result.confidence,
+      descriptor: descriptor,
+      confidence: confidence,
       processingTime: processingTime
     }, { status: 200 });
 
@@ -80,7 +99,6 @@ export async function POST(request) {
   }
 }
 
-// Handle other methods
 export async function GET(request) {
   return NextResponse.json({
     success: false,
