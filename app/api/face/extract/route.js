@@ -1,15 +1,15 @@
 // app/api/face/extract/route.js
-// Extract face descriptor from base64 image
-
 import { NextResponse } from 'next/server';
 import faceRecognition from '@/lib/face-recognition-browser';
+
+// Load models when the API route is first imported
+await faceRecognition.loadModels();
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const { image } = body;
 
-    // Validate request
     if (!image) {
       return NextResponse.json({
         success: false,
@@ -17,7 +17,6 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Validate image format
     if (!image.startsWith('data:image/')) {
       return NextResponse.json({
         success: false,
@@ -28,7 +27,6 @@ export async function POST(request) {
     console.log('📸 Extracting face descriptor from mobile image...');
     const startTime = Date.now();
 
-    // Use your existing face-recognition-browser.js
     const result = await faceRecognition.extractDescriptor(image);
 
     const processingTime = Date.now() - startTime;
@@ -60,20 +58,3 @@ export async function POST(request) {
     }, { status: 500 });
   }
 }
-
-// Handle other methods
-export async function GET(request) {
-  return NextResponse.json({
-    success: false,
-    message: 'Method not allowed. Use POST.'
-  }, { status: 405 });
-}
-
-// Increase body size limit for images
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
