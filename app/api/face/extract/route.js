@@ -106,118 +106,33 @@
 //   }, { status: 405 });
 // }
 
-// app/api/face/extract/route.js
 import { NextResponse } from 'next/server';
-import * as faceapi from 'face-api.js';
-import sharp from 'sharp';
-import { Canvas, Image, ImageData } from 'canvas';
 
-// Polyfill for face-api.js
-faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
-
-let modelsLoaded = false;
-
-async function loadModels() {
-  if (modelsLoaded) return;
-  
-  const modelPath = process.cwd() + '/public/models';
-  
-  await Promise.all([
-    faceapi.nets.ssdMobilenetv1.loadFromDisk(modelPath),
-    faceapi.nets.faceLandmark68Net.loadFromDisk(modelPath),
-    faceapi.nets.faceRecognitionNet.loadFromDisk(modelPath)
-  ]);
-  
-  modelsLoaded = true;
-  console.log('✅ Models loaded');
-}
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'https://your-render-app.onrender.com';
 
 export async function POST(request) {
   try {
-    const { image } = await request.json();
-
-    if (!image) {
-      return NextResponse.json({
-        success: false,
-        message: 'Image is required in request body'
-      }, { status: 400 });
-    }
-
-    if (!image.startsWith('data:image/')) {
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid image format. Must be base64 data URI'
-      }, { status: 400 });
-    }
-
-    console.log('📸 Extracting face descriptor...');
-    const startTime = Date.now();
-
-    // Load models
-    await loadModels();
-
-    // Convert base64 to buffer
-    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    // Process image with sharp (resize for consistency)
-    const processedBuffer = await sharp(buffer)
-      .resize(640, 480, { fit: 'inside' })
-      .jpeg()
-      .toBuffer();
-
-    // Create Canvas Image
-    const img = new Image();
-    img.src = processedBuffer;
-
-    // Detect face
-    const detection = await faceapi
-      .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    const processingTime = Date.now() - startTime;
-    console.log(`⏱️ Processing time: ${processingTime}ms`);
-
-    if (!detection) {
-      console.log('❌ No face detected');
-      return NextResponse.json({
-        success: false,
-        message: 'No face detected in image'
-      }, { status: 400 });
-    }
-
-    const descriptor = Array.from(detection.descriptor);
-    const confidence = Math.round(detection.detection.score * 100);
-
-    console.log(`✅ Face extracted successfully (confidence: ${confidence}%)`);
-
-    return NextResponse.json({
-      success: true,
-      descriptor: descriptor,
-      confidence: confidence,
-      processingTime: processingTime
-    }, { status: 200 });
-
+    const body = await request.json();
+    
+    const response = await fetch(`${PYTHON_API_URL}/api/face/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+    
   } catch (error) {
-    console.error('❌ Extract API error:', error);
+    console.error('❌ Proxy error:', error);
     return NextResponse.json({
       success: false,
-      message: error.message || 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message
     }, { status: 500 });
   }
 }
 
-export async function GET(request) {
+export async function GET() {
   return NextResponse.json({
     success: false,
     message: 'Method not allowed. Use POST.'

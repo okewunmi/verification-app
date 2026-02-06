@@ -105,121 +105,33 @@
 //   }, { status: 405 });
 // }
 
-// app/api/face/verify/route.js
 import { NextResponse } from 'next/server';
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
-
-// Pure JavaScript Euclidean distance
-function euclideanDistance(descriptor1, descriptor2) {
-  if (descriptor1.length !== descriptor2.length) {
-    throw new Error('Descriptor length mismatch');
-  }
-  
-  let sum = 0;
-  for (let i = 0; i < descriptor1.length; i++) {
-    const diff = descriptor1[i] - descriptor2[i];
-    sum += diff * diff;
-  }
-  
-  return Math.sqrt(sum);
-}
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'https://your-render-app.onrender.com';
 
 export async function POST(request) {
   try {
-    const { inputDescriptor, students } = await request.json();
-
-    if (!inputDescriptor || !Array.isArray(inputDescriptor)) {
-      return NextResponse.json({
-        success: false,
-        message: 'inputDescriptor array is required'
-      }, { status: 400 });
-    }
-
-    if (!students || !Array.isArray(students)) {
-      return NextResponse.json({
-        success: false,
-        message: 'students array is required'
-      }, { status: 400 });
-    }
-
-    if (students.length === 0) {
-      return NextResponse.json({
-        success: true,
-        matched: false,
-        message: 'No students in database to compare against'
-      }, { status: 200 });
-    }
-
-    console.log(`🔍 Verifying face against ${students.length} students...`);
-    const startTime = Date.now();
-
-    let bestMatch = null;
-    let bestDistance = Infinity;
-
-    // Find closest match
-    for (const student of students) {
-      if (!student.descriptor || !Array.isArray(student.descriptor)) {
-        console.warn(`⚠️ Student ${student.matricNumber} has invalid descriptor`);
-        continue;
-      }
-
-      const distance = euclideanDistance(inputDescriptor, student.descriptor);
-      
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestMatch = student;
-      }
-    }
-
-    const processingTime = Date.now() - startTime;
-    console.log(`⏱️ Verification time: ${processingTime}ms`);
-
-    // Threshold: 0.6 (same as face-api.js FaceMatcher)
-    const threshold = 0.6;
-    const matched = bestDistance < threshold;
-
-    if (!matched || !bestMatch) {
-      console.log('❌ No match found (best distance:', bestDistance.toFixed(3), ')');
-      return NextResponse.json({
-        success: true,
-        matched: false,
-        message: 'No matching student found',
-        bestDistance: bestDistance,
-        processingTime: processingTime
-      }, { status: 200 });
-    }
-
-    const confidence = Math.round((1 - bestDistance) * 100);
-
-    console.log(`✅ Match found: ${bestMatch.matricNumber} (confidence: ${confidence}%)`);
-
-    return NextResponse.json({
-      success: true,
-      matched: true,
-      student: bestMatch,
-      confidence: confidence,
-      distance: bestDistance,
-      processingTime: processingTime
-    }, { status: 200 });
-
+    const body = await request.json();
+    
+    const response = await fetch(`${PYTHON_API_URL}/api/face/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+    
   } catch (error) {
-    console.error('❌ Verify API error:', error);
+    console.error('❌ Proxy error:', error);
     return NextResponse.json({
       success: false,
-      message: error.message || 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message
     }, { status: 500 });
   }
 }
 
-export async function GET(request) {
+export async function GET() {
   return NextResponse.json({
     success: false,
     message: 'Method not allowed. Use POST.'

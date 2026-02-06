@@ -1,29 +1,21 @@
-// app/api/face/health/route.js
-// Health check endpoint to verify API is working
-
 import { NextResponse } from 'next/server';
 
-export async function GET(request) {
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'https://your-render-app.onrender.com';
+
+export async function GET() {
   try {
+    const response = await fetch(`${PYTHON_API_URL}/`);
+    const data = await response.json();
+    
     return NextResponse.json({
       success: true,
-      message: 'Face recognition API is healthy',
-      timestamp: new Date().toISOString(),
-      status: 'operational'
-    }, { status: 200 });
+      message: 'API is healthy',
+      pythonApi: data
+    });
   } catch (error) {
-    console.error('Health check error:', error);
     return NextResponse.json({
       success: false,
-      message: error.message
-    }, { status: 500 });
+      message: 'Python API unavailable'
+    }, { status: 503 });
   }
-}
-
-// Optionally handle other methods
-export async function POST(request) {
-  return NextResponse.json({
-    success: false,
-    message: 'Method not allowed. Use GET.'
-  }, { status: 405 });
 }
