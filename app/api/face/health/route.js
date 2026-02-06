@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const PYTHON_API_URL = process.env.PYTHON_API_URL || 'face-detection-api.up.railway.app';
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'https://face-detection-api.up.railway.app';
 
 export async function GET() {
   try {
