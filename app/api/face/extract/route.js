@@ -108,7 +108,7 @@
 
 import { NextResponse } from 'next/server';
 
-const PYTHON_API_URL = process.env.PYTHON_API_URL || 'https://your-render-app.onrender.com';
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'face-detection-api.up.railway.app';
 
 export async function POST(request) {
   try {
