@@ -362,107 +362,252 @@ const streamRef = useRef(null);
         return;
       }
 
-      // ===== STEP 2: Check for duplicates (OPTIMIZED) =====
-      setCheckingDuplicates(true);
-      setCaptureStatus({ type: "info", message: "Checking for duplicates..." });
+      // // ===== STEP 2: Check for duplicates (OPTIMIZED) =====
+      // setCheckingDuplicates(true);
+      // setCaptureStatus({ type: "info", message: "Checking for duplicates..." });
 
-      console.log("🔍 Starting duplicate check...");
+      // console.log("🔍 Starting duplicate check...");
 
-      // Get all stored fingerprints
-      const storedFingerprints = await getStudentsWithFingerprintsPNG();
+      // // Get all stored fingerprints
+      // const storedFingerprints = await getStudentsWithFingerprintsPNG();
 
-      if (storedFingerprints.success && storedFingerprints.data.length > 0) {
-        console.log(
-          `📊 Checking against ${storedFingerprints.data.length} stored fingerprints...`,
-        );
+      // if (storedFingerprints.success && storedFingerprints.data.length > 0) {
+      //   console.log(
+      //     `📊 Checking against ${storedFingerprints.data.length} stored fingerprints...`,
+      //   );
 
-        // 🚀 USE BATCH COMPARISON (MUCH FASTER!)
-        const response = await fetch("/api/fingerprint/verify-batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            queryImage: captureResult.imageData,
-            database: storedFingerprints.data.map((fp) => ({
-              id: fp.fileId,
-              studentId: fp.student.$id,
-              matricNumber: fp.student.matricNumber,
-              studentName: `${fp.student.firstName} ${fp.student.surname}`,
-              fingerName: fp.fingerName,
-              imageData: fp.imageData,
-              student: fp.student,
-            })),
-          }),
-        });
+      //   // 🚀 USE BATCH COMPARISON (MUCH FASTER!)
+      //   const response = await fetch("/api/fingerprint/verify-batch", {
+      //     method: "POST",
+      //     headers: { "Content-Type": "application/json" },
+      //     body: JSON.stringify({
+      //       queryImage: captureResult.imageData,
+      //       database: storedFingerprints.data.map((fp) => ({
+      //         id: fp.fileId,
+      //         studentId: fp.student.$id,
+      //         matricNumber: fp.student.matricNumber,
+      //         studentName: `${fp.student.firstName} ${fp.student.surname}`,
+      //         fingerName: fp.fingerName,
+      //         imageData: fp.imageData,
+      //         student: fp.student,
+      //       })),
+      //     }),
+      //   });
 
-        const batchResult = await response.json();
+      //   const batchResult = await response.json();
 
-        if (batchResult.success && batchResult.matched) {
-          const match = batchResult.bestMatch;
+      //   if (batchResult.success && batchResult.matched) {
+      //     const match = batchResult.bestMatch;
 
-          // Check if it's the SAME student (OK) or DIFFERENT student (DUPLICATE)
-          if (match.studentId !== selectedStudent.$id) {
-            console.error("❌ DUPLICATE DETECTED!");
-            setCheckingDuplicates(false);
-            setCaptureStatus({
-              type: "error",
-              message: `⚠️ DUPLICATE! This fingerprint is already registered to ${match.studentName}`,
-            });
-            setIsCapturing(false);
+      //     // Check if it's the SAME student (OK) or DIFFERENT student (DUPLICATE)
+      //     if (match.studentId !== selectedStudent.$id) {
+      //       console.error("❌ DUPLICATE DETECTED!");
+      //       setCheckingDuplicates(false);
+      //       setCaptureStatus({
+      //         type: "error",
+      //         message: `⚠️ DUPLICATE! This fingerprint is already registered to ${match.studentName}`,
+      //       });
+      //       setIsCapturing(false);
 
-            try {
-              const audio = new Audio("/sounds/error.mp3");
-              audio.play().catch((e) => console.log("Audio play failed:", e));
-            } catch (e) {}
+      //       try {
+      //         const audio = new Audio("/sounds/error.mp3");
+      //         audio.play().catch((e) => console.log("Audio play failed:", e));
+      //       } catch (e) {}
 
-            return;
-          }
+      //       return;
+      //     }
 
-          console.log("✓ Same student - checking if same finger slot...");
-        }
-      }
+      //     console.log("✓ Same student - checking if same finger slot...");
+      //   }
+      // }
 
-      setCheckingDuplicates(false);
+      // setCheckingDuplicates(false);
 
-      // ===== STEP 3: Check current session duplicates =====
-      console.log("🔍 Checking session duplicates...");
+      // // ===== STEP 3: Check current session duplicates =====
+      // console.log("🔍 Checking session duplicates...");
 
-      const sessionDuplicates = [];
-      const sessionFingers = Object.entries(capturedFingers).filter(
-        ([fingerId, data]) => fingerId !== currentFinger.id && data?.imageData,
-      );
+      // const sessionDuplicates = [];
+      // const sessionFingers = Object.entries(capturedFingers).filter(
+      //   ([fingerId, data]) => fingerId !== currentFinger.id && data?.imageData,
+      // );
 
-      if (sessionFingers.length > 0) {
-        // Batch check session fingers too
-        const sessionResponse = await fetch("/api/fingerprint/verify-batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            queryImage: captureResult.imageData,
-            database: sessionFingers.map(([fingerId, data]) => ({
-              id: fingerId,
-              fingerName: fingers.find((f) => f.id === fingerId)?.label,
-              imageData: data.imageData,
-            })),
-          }),
-        });
+      // if (sessionFingers.length > 0) {
+      //   // Batch check session fingers too
+      //   const sessionResponse = await fetch("/api/fingerprint/verify-batch", {
+      //     method: "POST",
+      //     headers: { "Content-Type": "application/json" },
+      //     body: JSON.stringify({
+      //       queryImage: captureResult.imageData,
+      //       database: sessionFingers.map(([fingerId, data]) => ({
+      //         id: fingerId,
+      //         fingerName: fingers.find((f) => f.id === fingerId)?.label,
+      //         imageData: data.imageData,
+      //       })),
+      //     }),
+      //   });
 
-        const sessionResult = await sessionResponse.json();
+      //   const sessionResult = await sessionResponse.json();
 
-        if (sessionResult.success && sessionResult.matched) {
+      //   if (sessionResult.success && sessionResult.matched) {
+      //     setCaptureStatus({
+      //       type: "error",
+      //       message: `⚠️ DUPLICATE! You already captured this finger as "${sessionResult.bestMatch.fingerName}". Please use a different finger.`,
+      //     });
+      //     setIsCapturing(false);
+
+      //     try {
+      //       const audio = new Audio("/sounds/error.mp3");
+      //       audio.play().catch((e) => console.log("Audio play failed:", e));
+      //     } catch (e) {}
+
+      //     return;
+      //   }
+      // }
+
+// ===== STEP 2: Check for duplicates (OPTIMIZED) with RETRY LOGIC =====
+setCheckingDuplicates(true);
+setCaptureStatus({ type: "info", message: "Checking for duplicates..." });
+
+console.log("🔍 Starting duplicate check...");
+
+// Get all stored fingerprints
+const storedFingerprints = await getStudentsWithFingerprintsPNG();
+
+if (storedFingerprints.success && storedFingerprints.data.length > 0) {
+  console.log(
+    `📊 Checking against ${storedFingerprints.data.length} stored fingerprints...`,
+  );
+
+  // 🚀 USE BATCH COMPARISON with RETRY LOGIC for 503 errors
+  let response;
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  while (retryCount < maxRetries) {
+    try {
+      response = await fetch("/api/fingerprint/verify-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          queryImage: captureResult.imageData,
+          database: storedFingerprints.data.map((fp) => ({
+            id: fp.fileId,
+            studentId: fp.student.$id,
+            matricNumber: fp.student.matricNumber,
+            studentName: `${fp.student.firstName} ${fp.student.surname}`,
+            fingerName: fp.fingerName,
+            imageData: fp.imageData,
+            student: fp.student,
+          })),
+          is_duplicate_check: true  // ⭐ Use HIGHER threshold (80 instead of 40)
+        }),
+      });
+
+      if (response.status === 503) {
+        // Server sleeping/overloaded - retry with exponential backoff
+        retryCount++;
+        const waitTime = retryCount * 2;
+        console.warn(`⚠️ Server unavailable (attempt ${retryCount}/${maxRetries}), retrying in ${waitTime}s...`);
+        
+        if (retryCount < maxRetries) {
           setCaptureStatus({
-            type: "error",
-            message: `⚠️ DUPLICATE! You already captured this finger as "${sessionResult.bestMatch.fingerName}". Please use a different finger.`,
+            type: "info",
+            message: `Server busy, retrying in ${waitTime}s... (${retryCount}/${maxRetries})`
           });
-          setIsCapturing(false);
-
-          try {
-            const audio = new Audio("/sounds/error.mp3");
-            audio.play().catch((e) => console.log("Audio play failed:", e));
-          } catch (e) {}
-
-          return;
+          await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+          continue; // Retry
+        } else {
+          throw new Error('NBIS server is unavailable. Please wait a moment and try again.');
         }
       }
+      
+      // Success - break retry loop
+      break;
+      
+    } catch (fetchError) {
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        throw new Error(`Failed after ${maxRetries} retries: ${fetchError.message}`);
+      }
+      const waitTime = retryCount * 2;
+      console.warn(`⚠️ Fetch error (attempt ${retryCount}/${maxRetries}):`, fetchError.message);
+      setCaptureStatus({
+        type: "info",
+        message: `Connection error, retrying in ${waitTime}s...`
+      });
+      await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+    }
+  }
+
+  const batchResult = await response.json();
+
+  if (batchResult.success && batchResult.matched) {
+    const match = batchResult.bestMatch;
+
+    // Check if it's the SAME student (OK) or DIFFERENT student (DUPLICATE)
+    if (match.studentId !== selectedStudent.$id) {
+      console.error("❌ DUPLICATE DETECTED!");
+      setCheckingDuplicates(false);
+      setCaptureStatus({
+        type: "error",
+        message: `⚠️ DUPLICATE! This fingerprint is already registered to ${match.studentName} (Score: ${match.score})`,
+      });
+      setIsCapturing(false);
+
+      try {
+        const audio = new Audio("/sounds/error.mp3");
+        audio.play().catch((e) => console.log("Audio play failed:", e));
+      } catch (e) {}
+
+      return;
+    }
+
+    console.log("✓ Same student - checking if same finger slot...");
+  }
+}
+
+setCheckingDuplicates(false);
+
+// ===== STEP 3: Check current session duplicates =====
+console.log("🔍 Checking session duplicates...");
+
+const sessionFingers = Object.entries(capturedFingers).filter(
+  ([fingerId, data]) => fingerId !== currentFinger.id && data?.imageData,
+);
+
+if (sessionFingers.length > 0) {
+  // Batch check session fingers too
+  const sessionResponse = await fetch("/api/fingerprint/verify-batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      queryImage: captureResult.imageData,
+      database: sessionFingers.map(([fingerId, data]) => ({
+        id: fingerId,
+        fingerName: fingers.find((f) => f.id === fingerId)?.label,
+        imageData: data.imageData,
+      })),
+      is_duplicate_check: true  // ⭐ Use HIGHER threshold
+    }),
+  });
+
+  const sessionResult = await sessionResponse.json();
+
+  if (sessionResult.success && sessionResult.matched) {
+    setCaptureStatus({
+      type: "error",
+      message: `⚠️ DUPLICATE! You already captured this finger as "${sessionResult.bestMatch.fingerName}" (Score: ${sessionResult.bestMatch.score}). Please use a different finger.`,
+    });
+    setIsCapturing(false);
+
+    try {
+      const audio = new Audio("/sounds/error.mp3");
+      audio.play().catch((e) => console.log("Audio play failed:", e));
+    } catch (e) {}
+
+    return;
+  }
+}
 
       // ===== STEP 4: Check if slot already used =====
       if (capturedFingers[currentFinger.id]) {

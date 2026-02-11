@@ -46,15 +46,27 @@ export async function POST(request) {
     console.log('🌐 Calling NBIS batch-compare endpoint...');
     
     try {
-      const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query_image: cleanQueryImage,
-          database: cleanDatabase
-        }),
-        signal: AbortSignal.timeout(120000)
-      });
+      // const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     query_image: cleanQueryImage,
+      //     database: cleanDatabase
+      //   }),
+      //   signal: AbortSignal.timeout(120000)
+      // });
+
+
+const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    query_image: cleanQueryImage,
+    database: cleanDatabase,
+    is_duplicate_check: data.is_duplicate_check || true  // ⭐ Pass flag through
+  }),
+  signal: AbortSignal.timeout(120000)
+});
 
       // Get response text first to debug
       const responseText = await nbisResponse.text();
