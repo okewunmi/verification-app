@@ -94,39 +94,7 @@ let databaseCache = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-useEffect(() => {
-  const preloadDatabase = async () => {
-    // Only fetch if cache is empty or expired
-    if (!databaseCache || Date.now() - cacheTimestamp > CACHE_DURATION) {
-      console.log("🔄 Pre-loading fingerprint database...");
-      const startTime = Date.now();
-      
-      try {
-        const result = await getStudentsWithFingerprintsPNG();
-        if (result.success) {
-          databaseCache = result.data.map((fp) => ({
-            id: fp.fileId,
-            studentId: fp.student.$id,
-            matricNumber: fp.student.matricNumber,
-            studentName: `${fp.student.firstName} ${fp.student.surname}`,
-            fingerName: fp.fingerName,
-            imageData: fp.imageData,
-          }));
-          cacheTimestamp = Date.now();
-          
-          const elapsed = Date.now() - startTime;
-          console.log(`✅ Pre-loaded ${databaseCache.length} fingerprints in ${elapsed}ms`);
-        }
-      } catch (error) {
-        console.error("⚠️ Database pre-load failed:", error);
-      }
-    } else {
-      console.log("✅ Using cached database");
-    }
-  };
 
-  preloadDatabase();
-}, []); // Empty deps = run once on mount
 
   useEffect(() => {
     fetchStudents();
@@ -712,6 +680,7 @@ useEffect(() => {
 // ===== COMPLETE FIX FOR handleCaptureFinger =====
 // Replace your entire handleCaptureFinger function with this
 
+
 // const handleCaptureFinger = async () => {
 //   if (!scannerStatus.ready) {
 //     setCaptureStatus({
@@ -960,6 +929,10 @@ useEffect(() => {
 //     setCheckingDuplicates(false);
 //   }
 // };
+
+
+
+
 const handleCaptureFinger = async () => {
   if (!fingerprintScanner.current?.isReady()) {
     setCaptureStatus({
@@ -1198,6 +1171,8 @@ const handleCaptureFinger = async () => {
     console.timeEnd(`⏱️ ${currentFinger.label} total time`);
   }
 };
+
+
 const saveFingerprintsPNGToStorage = async (fingersData = null) => {
     setCaptureStatus({
       type: "info",
