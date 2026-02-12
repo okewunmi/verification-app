@@ -752,17 +752,21 @@ const handleCaptureFinger = async () => {
           return;
         }
 
-        // Call NBIS server to compare (use higher threshold for duplicates)
+        // ⭐ Call NBIS server to compare (use RELATIVE URL!)
         try {
-          const compareResponse = await fetch("/api/fingerprint/compare", {
+          const compareResponse = await fetch("/api/fingerprint/compare", {  // ✅ RELATIVE URL
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               image1: captureResult.imageData,
               image2: fingerData.imageData,
-              is_duplicate_check: true  // Higher threshold
+              is_duplicate_check: true  // Higher threshold (80)
             }),
           });
+
+          if (!compareResponse.ok) {
+            throw new Error(`HTTP ${compareResponse.status}: ${compareResponse.statusText}`);
+          }
 
           const compareResult = await compareResponse.json();
           
@@ -817,8 +821,8 @@ const handleCaptureFinger = async () => {
         `📊 Checking against ${storedFingerprints.data.length} stored fingerprints...`,
       );
 
-      // Use batch comparison for speed
-      const response = await fetch("/api/fingerprint/verify-batch", {
+      // ⭐ Use batch comparison with RELATIVE URL
+      const response = await fetch("/api/fingerprint/verify-batch", {  // ✅ RELATIVE URL
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -835,6 +839,10 @@ const handleCaptureFinger = async () => {
           is_duplicate_check: true  // ⭐ Use higher threshold (80)
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
       const batchResult = await response.json();
 
