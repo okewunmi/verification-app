@@ -90,6 +90,44 @@ const streamRef = useRef(null);
   ];
   const levels = ["100", "200", "300", "400", "500"];
 
+let databaseCache = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+useEffect(() => {
+  const preloadDatabase = async () => {
+    // Only fetch if cache is empty or expired
+    if (!databaseCache || Date.now() - cacheTimestamp > CACHE_DURATION) {
+      console.log("🔄 Pre-loading fingerprint database...");
+      const startTime = Date.now();
+      
+      try {
+        const result = await getStudentsWithFingerprintsPNG();
+        if (result.success) {
+          databaseCache = result.data.map((fp) => ({
+            id: fp.fileId,
+            studentId: fp.student.$id,
+            matricNumber: fp.student.matricNumber,
+            studentName: `${fp.student.firstName} ${fp.student.surname}`,
+            fingerName: fp.fingerName,
+            imageData: fp.imageData,
+          }));
+          cacheTimestamp = Date.now();
+          
+          const elapsed = Date.now() - startTime;
+          console.log(`✅ Pre-loaded ${databaseCache.length} fingerprints in ${elapsed}ms`);
+        }
+      } catch (error) {
+        console.error("⚠️ Database pre-load failed:", error);
+      }
+    } else {
+      console.log("✅ Using cached database");
+    }
+  };
+
+  preloadDatabase();
+}, []); // Empty deps = run once on mount
+
   useEffect(() => {
     fetchStudents();
     fetchStats();
@@ -674,11 +712,259 @@ const streamRef = useRef(null);
 // ===== COMPLETE FIX FOR handleCaptureFinger =====
 // Replace your entire handleCaptureFinger function with this
 
+// const handleCaptureFinger = async () => {
+//   if (!scannerStatus.ready) {
+//     setCaptureStatus({
+//       type: "error",
+//       message: scannerStatus.message || "Scanner not initialized.",
+//     });
+//     return;
+//   }
+
+//   setIsCapturing(true);
+//   setCaptureStatus({ type: "info", message: "Place finger on scanner..." });
+
+//   try {
+//     const currentFinger = fingers[currentFingerIndex];
+
+//     // ===== STEP 1: Capture fingerprint =====
+//     console.log(`\n🔍 Capturing ${currentFinger.label}...`);
+//     const captureResult = await fingerprintScanner.capturePNG(
+//       currentFinger.label,
+//     );
+
+//     if (!captureResult.success) {
+//       throw new Error(captureResult.error);
+//     }
+
+//     console.log("✅ Captured successfully");
+//     console.log("📊 Quality:", captureResult.quality + "%");
+//     console.log("📏 Size:", captureResult.imageData?.length || 0, "bytes");
+
+//     // Quality check
+//     if (captureResult.quality < 50) {
+//       setCaptureStatus({
+//         type: "warning",
+//         message: `Quality too low (${captureResult.quality}%). Please clean your finger and try again.`,
+//       });
+//       setIsCapturing(false);
+//       return;
+//     }
+
+//     // ===== STEP 2: Check if slot already used =====
+//     if (capturedFingers[currentFinger.id]) {
+//       setCaptureStatus({
+//         type: "error",
+//         message: `This finger slot (${currentFinger.label}) has already been captured. Please move to the next slot.`,
+//       });
+//       setIsCapturing(false);
+//       return;
+//     }
+
+//     // ===== STEP 3: Check SESSION duplicates FIRST (faster) =====
+//     console.log("🔍 Checking session duplicates...");
+    
+//     const sessionFingers = Object.entries(capturedFingers).filter(
+//       ([fingerId, data]) => fingerId !== currentFinger.id && data?.imageData,
+//     );
+
+//     console.log(`📊 Session has ${sessionFingers.length} previously captured finger(s)`);
+
+//     if (sessionFingers.length > 0) {
+//       // ⚠️ CRITICAL: Check each previously captured finger
+//       for (const [fingerId, fingerData] of sessionFingers) {
+//         const fingerLabel = fingers.find((f) => f.id === fingerId)?.label || fingerId;
+        
+//         console.log(`  🔍 Comparing against session finger: ${fingerLabel}`);
+//         console.log(`     New image size: ${captureResult.imageData.length}`);
+//         console.log(`     Old image size: ${fingerData.imageData.length}`);
+        
+//         // Quick exact match check (same image = error)
+//         if (captureResult.imageData === fingerData.imageData) {
+//           console.error(`  ❌ EXACT MATCH - Same image captured twice!`);
+//           setCaptureStatus({
+//             type: "error",
+//             message: `⚠️ ERROR: Same fingerprint captured twice. This shouldn't happen - please restart capture.`,
+//           });
+//           setIsCapturing(false);
+//           return;
+//         }
+
+//         // ⭐ Call NBIS server to compare (use RELATIVE URL!)
+//         try {
+//           const compareResponse = await fetch("/api/fingerprint/compare", {  // ✅ RELATIVE URL
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify({
+//               image1: captureResult.imageData,
+//               image2: fingerData.imageData,
+//               is_duplicate_check: true  // Higher threshold (80)
+//             }),
+//           });
+
+//           if (!compareResponse.ok) {
+//             throw new Error(`HTTP ${compareResponse.status}: ${compareResponse.statusText}`);
+//           }
+
+//           const compareResult = await compareResponse.json();
+          
+//           console.log(`  📊 Comparison result: Score ${compareResult.score || compareResult.similarity}`);
+
+//           // ⚠️ Use threshold of 80 for session duplicate detection
+//           const SESSION_DUPLICATE_THRESHOLD = 80;
+          
+//           if (compareResult.success) {
+//             const score = compareResult.score || compareResult.similarity;
+            
+//             if (score >= SESSION_DUPLICATE_THRESHOLD) {
+//               console.error(`  ❌ SESSION DUPLICATE DETECTED! Score: ${score}`);
+//               setCaptureStatus({
+//                 type: "error",
+//                 message: `⚠️ DUPLICATE! You already captured this finger as "${fingerLabel}" (Score: ${score}). Please use a different finger.`,
+//               });
+//               setIsCapturing(false);
+
+//               try {
+//                 const audio = new Audio("/sounds/error.mp3");
+//                 audio.play().catch((e) => console.log("Audio play failed:", e));
+//               } catch (e) {}
+
+//               return;
+//             } else {
+//               console.log(`  ✅ Different finger (Score: ${score} < ${SESSION_DUPLICATE_THRESHOLD})`);
+//             }
+//           }
+//         } catch (compareError) {
+//           console.warn(`  ⚠️ Session comparison failed:`, compareError.message);
+//           // Continue - don't block enrollment if session check fails
+//         }
+//       }
+      
+//       console.log("✅ Session duplicate check passed - all fingers are unique");
+//     } else {
+//       console.log("ℹ️  No session fingers to check (first capture)");
+//     }
+
+//     // ===== STEP 4: Check DATABASE duplicates =====
+//     setCheckingDuplicates(true);
+//     setCaptureStatus({ type: "info", message: "Checking against database..." });
+
+//     console.log("🔍 Starting database duplicate check...");
+
+//     // Get all stored fingerprints
+//     const storedFingerprints = await getStudentsWithFingerprintsPNG();
+
+//     if (storedFingerprints.success && storedFingerprints.data.length > 0) {
+//       console.log(
+//         `📊 Checking against ${storedFingerprints.data.length} stored fingerprints...`,
+//       );
+
+//       // ⭐ Use batch comparison with RELATIVE URL
+//       const response = await fetch("/api/fingerprint/verify-batch", {  // ✅ RELATIVE URL
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({
+//           queryImage: captureResult.imageData,
+//           database: storedFingerprints.data.map((fp) => ({
+//             id: fp.fileId,
+//             studentId: fp.student.$id,
+//             matricNumber: fp.student.matricNumber,
+//             studentName: `${fp.student.firstName} ${fp.student.surname}`,
+//             fingerName: fp.fingerName,
+//             imageData: fp.imageData,
+//             student: fp.student,
+//           })),
+//           is_duplicate_check: true  // ⭐ Use higher threshold (80)
+//         }),
+//       });
+
+//       if (!response.ok) {
+//         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//       }
+
+//       const batchResult = await response.json();
+
+//       if (batchResult.success && batchResult.matched) {
+//         const match = batchResult.bestMatch;
+
+//         // Check if it's the SAME student (OK) or DIFFERENT student (DUPLICATE)
+//         if (match.studentId !== selectedStudent.$id) {
+//           console.error("❌ DATABASE DUPLICATE DETECTED!");
+//           setCheckingDuplicates(false);
+//           setCaptureStatus({
+//             type: "error",
+//             message: `⚠️ DUPLICATE! This fingerprint is already registered to ${match.studentName} (Score: ${match.score})`,
+//           });
+//           setIsCapturing(false);
+
+//           try {
+//             const audio = new Audio("/sounds/error.mp3");
+//             audio.play().catch((e) => console.log("Audio play failed:", e));
+//           } catch (e) {}
+
+//           return;
+//         }
+
+//         console.log("✓ Same student - allowed");
+//       }
+//     }
+
+//     setCheckingDuplicates(false);
+//     console.log("✅ Fingerprint is unique - accepting");
+
+//     // ===== STEP 5: Save fingerprint to state =====
+//     const newCapturedFingers = {
+//       ...capturedFingers,
+//       [currentFinger.id]: {
+//         imageData: captureResult.imageData,
+//         quality: captureResult.quality,
+//         capturedAt: new Date().toISOString(),
+//       },
+//     };
+
+//     setCapturedFingers(newCapturedFingers);
+
+//     setCaptureStatus({
+//       type: "success",
+//       message: `✅ ${currentFinger.label} captured successfully! (Quality: ${captureResult.quality}%)`,
+//     });
+
+//     try {
+//       const audio = new Audio("/sounds/success.mp3");
+//       audio.play().catch((e) => console.log("Audio play failed:", e));
+//     } catch (e) {}
+
+//     const nextIndex = currentFingerIndex + 1;
+//     const isLastFinger = nextIndex >= fingers.length;
+
+//     setTimeout(() => {
+//       if (isLastFinger) {
+//         console.log("🎉 All 5 fingers captured! Saving to storage...");
+//         saveFingerprintsPNGToStorage(newCapturedFingers);
+//       } else {
+//         setCurrentFingerIndex(nextIndex);
+//         setCaptureStatus({
+//           type: "info",
+//           message: "Ready for next finger...",
+//         });
+//       }
+//       setIsCapturing(false);
+//     }, 1500);
+//   } catch (error) {
+//     console.error("❌ Capture error:", error);
+//     setCaptureStatus({
+//       type: "error",
+//       message: error.message || "Capture failed. Please try again.",
+//     });
+//     setIsCapturing(false);
+//     setCheckingDuplicates(false);
+//   }
+// };
 const handleCaptureFinger = async () => {
-  if (!scannerStatus.ready) {
+  if (!fingerprintScanner.current?.isReady()) {
     setCaptureStatus({
       type: "error",
-      message: scannerStatus.message || "Scanner not initialized.",
+      message: "Scanner not initialized.",
     });
     return;
   }
@@ -688,193 +974,180 @@ const handleCaptureFinger = async () => {
 
   try {
     const currentFinger = fingers[currentFingerIndex];
+    
+    console.time(`⏱️ ${currentFinger.label} total time`);
 
-    // ===== STEP 1: Capture fingerprint =====
-    console.log(`\n🔍 Capturing ${currentFinger.label}...`);
-    const captureResult = await fingerprintScanner.capturePNG(
-      currentFinger.label,
+    // ===== STEP 1: Capture =====
+    console.time('  1. Capture');
+    const captureResult = await fingerprintScanner.current.capturePNG(
+      currentFinger.label
     );
+    console.timeEnd('  1. Capture');
 
     if (!captureResult.success) {
       throw new Error(captureResult.error);
     }
 
-    console.log("✅ Captured successfully");
-    console.log("📊 Quality:", captureResult.quality + "%");
-    console.log("📏 Size:", captureResult.imageData?.length || 0, "bytes");
-
     // Quality check
     if (captureResult.quality < 50) {
       setCaptureStatus({
         type: "warning",
-        message: `Quality too low (${captureResult.quality}%). Please clean your finger and try again.`,
+        message: `Quality too low (${captureResult.quality}%). Please try again.`,
       });
       setIsCapturing(false);
+      console.timeEnd(`⏱️ ${currentFinger.label} total time`);
       return;
     }
 
-    // ===== STEP 2: Check if slot already used =====
+    // Check if slot already used
     if (capturedFingers[currentFinger.id]) {
       setCaptureStatus({
         type: "error",
-        message: `This finger slot (${currentFinger.label}) has already been captured. Please move to the next slot.`,
+        message: `This slot already captured.`,
       });
       setIsCapturing(false);
+      console.timeEnd(`⏱️ ${currentFinger.label} total time`);
       return;
     }
 
-    // ===== STEP 3: Check SESSION duplicates FIRST (faster) =====
-    console.log("🔍 Checking session duplicates...");
-    
+    // ===== STEP 2: Session Check (PARALLEL) ⚡ =====
+    console.time('  2. Session check');
     const sessionFingers = Object.entries(capturedFingers).filter(
-      ([fingerId, data]) => fingerId !== currentFinger.id && data?.imageData,
+      ([fingerId, data]) => fingerId !== currentFinger.id && data?.imageData
     );
 
-    console.log(`📊 Session has ${sessionFingers.length} previously captured finger(s)`);
-
     if (sessionFingers.length > 0) {
-      // ⚠️ CRITICAL: Check each previously captured finger
-      for (const [fingerId, fingerData] of sessionFingers) {
+      console.log(`  Checking against ${sessionFingers.length} session finger(s)...`);
+      
+      // ⚡ PARALLEL comparisons instead of sequential
+      const sessionChecks = sessionFingers.map(async ([fingerId, fingerData]) => {
         const fingerLabel = fingers.find((f) => f.id === fingerId)?.label || fingerId;
         
-        console.log(`  🔍 Comparing against session finger: ${fingerLabel}`);
-        console.log(`     New image size: ${captureResult.imageData.length}`);
-        console.log(`     Old image size: ${fingerData.imageData.length}`);
-        
-        // Quick exact match check (same image = error)
-        if (captureResult.imageData === fingerData.imageData) {
-          console.error(`  ❌ EXACT MATCH - Same image captured twice!`);
-          setCaptureStatus({
-            type: "error",
-            message: `⚠️ ERROR: Same fingerprint captured twice. This shouldn't happen - please restart capture.`,
-          });
-          setIsCapturing(false);
-          return;
-        }
-
-        // ⭐ Call NBIS server to compare (use RELATIVE URL!)
         try {
-          const compareResponse = await fetch("/api/fingerprint/compare", {  // ✅ RELATIVE URL
+          const response = await fetch("/api/fingerprint/compare", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               image1: captureResult.imageData,
               image2: fingerData.imageData,
-              is_duplicate_check: true  // Higher threshold (80)
+              is_duplicate_check: true
             }),
           });
 
-          if (!compareResponse.ok) {
-            throw new Error(`HTTP ${compareResponse.status}: ${compareResponse.statusText}`);
+          if (!response.ok) {
+            console.warn(`  ⚠️ Comparison with ${fingerLabel} failed`);
+            return { isDuplicate: false, score: 0, label: fingerLabel };
           }
 
-          const compareResult = await compareResponse.json();
+          const result = await response.json();
+          const score = result.score || 0;
           
-          console.log(`  📊 Comparison result: Score ${compareResult.score || compareResult.similarity}`);
-
-          // ⚠️ Use threshold of 80 for session duplicate detection
-          const SESSION_DUPLICATE_THRESHOLD = 80;
-          
-          if (compareResult.success) {
-            const score = compareResult.score || compareResult.similarity;
-            
-            if (score >= SESSION_DUPLICATE_THRESHOLD) {
-              console.error(`  ❌ SESSION DUPLICATE DETECTED! Score: ${score}`);
-              setCaptureStatus({
-                type: "error",
-                message: `⚠️ DUPLICATE! You already captured this finger as "${fingerLabel}" (Score: ${score}). Please use a different finger.`,
-              });
-              setIsCapturing(false);
-
-              try {
-                const audio = new Audio("/sounds/error.mp3");
-                audio.play().catch((e) => console.log("Audio play failed:", e));
-              } catch (e) {}
-
-              return;
-            } else {
-              console.log(`  ✅ Different finger (Score: ${score} < ${SESSION_DUPLICATE_THRESHOLD})`);
-            }
-          }
-        } catch (compareError) {
-          console.warn(`  ⚠️ Session comparison failed:`, compareError.message);
-          // Continue - don't block enrollment if session check fails
+          return {
+            isDuplicate: score >= 80,
+            score: score,
+            label: fingerLabel
+          };
+        } catch (error) {
+          console.warn(`  ⚠️ Error comparing with ${fingerLabel}:`, error.message);
+          return { isDuplicate: false, score: 0, label: fingerLabel };
         }
-      }
-      
-      console.log("✅ Session duplicate check passed - all fingers are unique");
-    } else {
-      console.log("ℹ️  No session fingers to check (first capture)");
-    }
-
-    // ===== STEP 4: Check DATABASE duplicates =====
-    setCheckingDuplicates(true);
-    setCaptureStatus({ type: "info", message: "Checking against database..." });
-
-    console.log("🔍 Starting database duplicate check...");
-
-    // Get all stored fingerprints
-    const storedFingerprints = await getStudentsWithFingerprintsPNG();
-
-    if (storedFingerprints.success && storedFingerprints.data.length > 0) {
-      console.log(
-        `📊 Checking against ${storedFingerprints.data.length} stored fingerprints...`,
-      );
-
-      // ⭐ Use batch comparison with RELATIVE URL
-      const response = await fetch("/api/fingerprint/verify-batch", {  // ✅ RELATIVE URL
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          queryImage: captureResult.imageData,
-          database: storedFingerprints.data.map((fp) => ({
-            id: fp.fileId,
-            studentId: fp.student.$id,
-            matricNumber: fp.student.matricNumber,
-            studentName: `${fp.student.firstName} ${fp.student.surname}`,
-            fingerName: fp.fingerName,
-            imageData: fp.imageData,
-            student: fp.student,
-          })),
-          is_duplicate_check: true  // ⭐ Use higher threshold (80)
-        }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Wait for ALL comparisons in parallel
+      const sessionResults = await Promise.all(sessionChecks);
+      
+      // Check if any duplicates found
+      const duplicate = sessionResults.find(r => r.isDuplicate);
+      if (duplicate) {
+        console.error(`  ❌ DUPLICATE! Score: ${duplicate.score}`);
+        console.timeEnd('  2. Session check');
+        console.timeEnd(`⏱️ ${currentFinger.label} total time`);
+        
+        setCaptureStatus({
+          type: "error",
+          message: `⚠️ DUPLICATE! Already captured as "${duplicate.label}" (Score: ${duplicate.score})`,
+        });
+        setIsCapturing(false);
+        return;
       }
+      
+      console.log(`  ✅ All session checks passed`);
+    } else {
+      console.log("  ℹ️ No session fingers to check (first capture)");
+    }
+    console.timeEnd('  2. Session check');
 
-      const batchResult = await response.json();
+    // ===== STEP 3: Database Check (ONLY FOR FIRST FINGER!) ⚡ =====
+    let shouldCheckDatabase = sessionFingers.length === 0; // Only first finger
+    
+    if (shouldCheckDatabase) {
+      console.time('  3. Database check');
+      
+      // ⚡ USE CACHE instead of fetching
+      const storedFingerprints = databaseCache || [];
+      
+      if (storedFingerprints.length > 0) {
+        setCheckingDuplicates(true);
+        setCaptureStatus({ type: "info", message: "Verifying against database..." });
 
-      if (batchResult.success && batchResult.matched) {
-        const match = batchResult.bestMatch;
+        console.log(`  Checking against ${storedFingerprints.length} stored fingerprints (from cache)...`);
 
-        // Check if it's the SAME student (OK) or DIFFERENT student (DUPLICATE)
-        if (match.studentId !== selectedStudent.$id) {
-          console.error("❌ DATABASE DUPLICATE DETECTED!");
-          setCheckingDuplicates(false);
-          setCaptureStatus({
-            type: "error",
-            message: `⚠️ DUPLICATE! This fingerprint is already registered to ${match.studentName} (Score: ${match.score})`,
+        try {
+          const response = await fetch("/api/fingerprint/verify-batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              queryImage: captureResult.imageData,
+              database: storedFingerprints,
+              is_duplicate_check: true
+            }),
           });
-          setIsCapturing(false);
 
-          try {
-            const audio = new Audio("/sounds/error.mp3");
-            audio.play().catch((e) => console.log("Audio play failed:", e));
-          } catch (e) {}
+          if (!response.ok) {
+            console.warn(`  ⚠️ Database check failed: ${response.status}`);
+          } else {
+            const batchResult = await response.json();
 
-          return;
+            if (batchResult.success && batchResult.matched) {
+              const match = batchResult.bestMatch;
+
+              // Check if it's a DIFFERENT student (fraud detection)
+              if (match.studentId !== selectedStudent.$id) {
+                console.error("  ❌ DATABASE DUPLICATE - Different student!");
+                console.timeEnd('  3. Database check');
+                console.timeEnd(`⏱️ ${currentFinger.label} total time`);
+                
+                setCheckingDuplicates(false);
+                setCaptureStatus({
+                  type: "error",
+                  message: `⚠️ This fingerprint belongs to ${match.studentName}`,
+                });
+                setIsCapturing(false);
+                return;
+              }
+
+              console.log("  ✓ Same student - verification passed");
+            } else {
+              console.log("  ✓ No database match - new fingerprint");
+            }
+          }
+        } catch (error) {
+          console.warn("  ⚠️ Database check error:", error.message);
         }
 
-        console.log("✓ Same student - allowed");
+        setCheckingDuplicates(false);
+      } else {
+        console.log("  ⚠️ No cached database available");
       }
+      
+      console.timeEnd('  3. Database check');
+    } else {
+      console.log('  3. Database check - SKIPPED (not first finger) ⚡');
     }
 
-    setCheckingDuplicates(false);
-    console.log("✅ Fingerprint is unique - accepting");
+    console.log("  ✅ Fingerprint accepted");
 
-    // ===== STEP 5: Save fingerprint to state =====
+    // ===== STEP 4: Save =====
     const newCapturedFingers = {
       ...capturedFingers,
       [currentFinger.id]: {
@@ -888,20 +1161,21 @@ const handleCaptureFinger = async () => {
 
     setCaptureStatus({
       type: "success",
-      message: `✅ ${currentFinger.label} captured successfully! (Quality: ${captureResult.quality}%)`,
+      message: `✅ ${currentFinger.label} captured! (Quality: ${captureResult.quality}%)`,
     });
 
     try {
-      const audio = new Audio("/sounds/success.mp3");
-      audio.play().catch((e) => console.log("Audio play failed:", e));
+      new Audio("/sounds/success.mp3").play().catch(() => {});
     } catch (e) {}
 
     const nextIndex = currentFingerIndex + 1;
     const isLastFinger = nextIndex >= fingers.length;
 
+    console.timeEnd(`⏱️ ${currentFinger.label} total time`);
+
     setTimeout(() => {
       if (isLastFinger) {
-        console.log("🎉 All 5 fingers captured! Saving to storage...");
+        console.log("🎉 All 5 fingers captured!");
         saveFingerprintsPNGToStorage(newCapturedFingers);
       } else {
         setCurrentFingerIndex(nextIndex);
@@ -912,17 +1186,18 @@ const handleCaptureFinger = async () => {
       }
       setIsCapturing(false);
     }, 1500);
+
   } catch (error) {
     console.error("❌ Capture error:", error);
     setCaptureStatus({
       type: "error",
-      message: error.message || "Capture failed. Please try again.",
+      message: error.message || "Capture failed",
     });
     setIsCapturing(false);
     setCheckingDuplicates(false);
+    console.timeEnd(`⏱️ ${currentFinger.label} total time`);
   }
 };
-
 const saveFingerprintsPNGToStorage = async (fingersData = null) => {
     setCaptureStatus({
       type: "info",
