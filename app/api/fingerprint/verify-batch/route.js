@@ -5,7 +5,7 @@ const NBIS_SERVER_URL = process.env.NBIS_SERVER_URL || 'https://nbis-server.onre
 
 export async function POST(request) {
   try {
-    const { queryImage, database } = await request.json();
+    const { queryImage, database, is_duplicate_check } = await request.json();
 
     if (!queryImage || !database || !Array.isArray(database)) {
       return NextResponse.json(
@@ -32,41 +32,31 @@ export async function POST(request) {
     const cleanQueryImage = cleanBase64(queryImage);
 
     // Prepare database
+    // FIX 3: Use 'imageData' (not 'image') to match Flask's db_entry['imageData']
     const cleanDatabase = database.map(entry => ({
       id: entry.id,
       studentId: entry.studentId,
       matricNumber: entry.matricNumber,
       studentName: entry.studentName,
       fingerName: entry.fingerName,
-      image: cleanBase64(entry.imageData),
+      imageData: cleanBase64(entry.imageData),  // ✅ was 'image', Flask reads 'imageData'
       student: entry.student
     }));
 
     // Try NBIS server with better error handling
     console.log('🌐 Calling NBIS batch-compare endpoint...');
-    
+
     try {
-      // const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     query_image: cleanQueryImage,
-      //     database: cleanDatabase
-      //   }),
-      //   signal: AbortSignal.timeout(120000)
-      // });
-
-
-const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    query_image: cleanQueryImage,
-    database: cleanDatabase,
-    is_duplicate_check: data.is_duplicate_check || true  // ⭐ Pass flag through
-  }),
-  signal: AbortSignal.timeout(120000)
-});
+      const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          queryImage: cleanQueryImage,           // ✅ FIX 1: camelCase matches Flask data['queryImage']
+          database: cleanDatabase,
+          is_duplicate_check: is_duplicate_check ?? true
+        }),
+        signal: AbortSignal.timeout(120000)
+      });
 
       // Get response text first to debug
       const responseText = await nbisResponse.text();
@@ -75,25 +65,25 @@ const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
 
       if (nbisResponse.ok) {
         const result = JSON.parse(responseText);
-        
-        console.log(`✅ Batch comparison complete`);
-        console.log(`🎯 Best match: ${result.best_match ? result.best_match.score : 'None'}`);
 
-        // Enhance result with student info
-        if (result.best_match) {
-          const matchedEntry = cleanDatabase.find(e => e.id === result.best_match.id);
+        console.log(`✅ Batch comparison complete`);
+        console.log(`🎯 Best match: ${result.bestMatch ? result.bestMatch.score : 'None'}`);
+
+        // Enhance result with student info if needed
+        if (result.bestMatch) {
+          const matchedEntry = cleanDatabase.find(e => e.id === result.bestMatch.id);
           if (matchedEntry) {
-            result.best_match.student = matchedEntry.student;
-            result.best_match.matricNumber = matchedEntry.matricNumber;
-            result.best_match.studentName = matchedEntry.studentName;
-            result.best_match.fingerName = matchedEntry.fingerName;
+            result.bestMatch.student = matchedEntry.student;
+            result.bestMatch.matricNumber = matchedEntry.matricNumber;
+            result.bestMatch.studentName = matchedEntry.studentName;
+            result.bestMatch.fingerName = matchedEntry.fingerName;
           }
         }
 
         return NextResponse.json({
           success: true,
-          matched: !!result.best_match,
-          bestMatch: result.best_match,
+          matched: !!result.bestMatch,
+          bestMatch: result.bestMatch,
           totalCompared: result.total_compared,
           queryMinutiae: result.query_minutiae,
           method: 'NIST_NBIS_BATCH'
@@ -105,28 +95,39 @@ const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
     } catch (nbisError) {
       console.error('❌ NBIS server error:', nbisError.message);
       console.log('⚠️ Falling back to sequential comparison...');
-      
-      // FALLBACK: Compare one-by-one using your /compare endpoint
+
+      // Wake up the server before retrying individual comparisons
+      try {
+        await fetch(`${NBIS_SERVER_URL}/health`, { signal: AbortSignal.timeout(10000) });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('✅ NBIS server is awake');
+      } catch {
+        console.warn('⚠️ Health ping failed — server may still be starting');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+
+      // FALLBACK: Compare one-by-one
       let bestMatch = null;
       let highestScore = 0;
 
       for (let i = 0; i < cleanDatabase.length; i++) {
         const entry = cleanDatabase[i];
-        
+
         try {
           const compareResponse = await fetch(`${NBIS_SERVER_URL}/compare`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               image1: cleanQueryImage,
-              image2: entry.image
+              image2: entry.imageData,           // ✅ matches the key we set above
+              is_duplicate_check: is_duplicate_check ?? true
             }),
-            signal: AbortSignal.timeout(30000)
+            signal: AbortSignal.timeout(60000)   // ✅ 60s for cold-start tolerance
           });
 
           if (compareResponse.ok) {
             const compareResult = await compareResponse.json();
-            
+
             if (compareResult.success && compareResult.matched && compareResult.score > highestScore) {
               highestScore = compareResult.score;
               bestMatch = {
@@ -161,7 +162,7 @@ const nbisResponse = await fetch(`${NBIS_SERVER_URL}/batch-compare`, {
 
   } catch (error) {
     console.error('❌ Batch verification error:', error);
-    
+
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
