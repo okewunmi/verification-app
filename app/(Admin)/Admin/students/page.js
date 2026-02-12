@@ -47,6 +47,7 @@ const streamRef = useRef(null);
     message: null,
     type: null,
   });
+  const fingerprintDbRef = useRef(null);
   // Note: We use a combined state object for clarity
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
