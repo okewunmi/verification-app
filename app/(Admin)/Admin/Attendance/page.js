@@ -155,8 +155,13 @@ export default function AdminAttendanceInterface() {
         const ctx = overlay.getContext('2d');
         ctx.clearRect(0, 0, overlay.width, overlay.height);
 
+        // const faceapi = window.faceapi;
+        // const detection = await faceapi.detectSingleFace(video);
         const faceapi = window.faceapi;
-        const detection = await faceapi.detectSingleFace(video);
+const detection = await faceapi.detectSingleFace(
+  video,
+  new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 })
+);
 
         if (detection) {
           setFaceDetected(true);
@@ -311,43 +316,57 @@ export default function AdminAttendanceInterface() {
     });
   };
 
-  const startCamera = async (mode = facingMode) => {
+ const startCamera = async (mode = facingMode) => {
+  try {
+    // Try with exact constraint first
+    let mediaStream;
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { exact: mode },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+    } catch (exactErr) {
+      // Fallback without exact
+      console.log('Exact constraint failed, trying without exact...');
+      mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: mode,
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
       });
+    }
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+    if (videoRef.current) {
+      videoRef.current.srcObject = mediaStream;
 
-        await new Promise((resolve) => {
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current.play();
-            resolve();
-          };
-        });
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
-      setStream(mediaStream);
-      setCameraActive(true);
-      setFacingMode(mode);
-      setStatus({ 
-        message: `✅ Camera ready (${mode === 'user' ? 'Front' : 'Back'}) - position your face in frame`, 
-        type: 'success' 
+      await new Promise((resolve) => {
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play();
+          resolve();
+        };
       });
 
-      console.log(`✅ Camera fully initialized (${mode === 'user' ? 'Front' : 'Back'}) and ready`);
-    } catch (err) {
-      console.error('Camera access error:', err);
-      setStatus({ message: 'Camera access denied', type: 'error' });
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
-  };
+
+    setStream(mediaStream);
+    setCameraActive(true);
+    setFacingMode(mode);
+    setStatus({ 
+      message: `✅ Camera ready (${mode === 'user' ? 'Front' : 'Back'}) - position your face in frame`, 
+      type: 'success' 
+    });
+
+    console.log(`✅ Camera fully initialized (${mode === 'user' ? 'Front' : 'Back'}) and ready`);
+  } catch (err) {
+    console.error('Camera access error:', err);
+    setStatus({ message: 'Camera access denied', type: 'error' });
+  }
+};
 
   const stopCamera = () => {
     if (stream) {
@@ -358,42 +377,104 @@ export default function AdminAttendanceInterface() {
     setFaceDetected(false);
   };
 
-  // NEW: Switch camera function
-  const switchCamera = async () => {
-    if (!cameraActive) return;
+ const switchCamera = async () => {
+  if (!cameraActive) return;
+  
+  setIsSwitchingCamera(true);
+  setStatus({ message: 'Switching camera...', type: 'info' });
+  
+  try {
+    // Step 1: Stop current stream completely
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      setStream(null);
+    }
+    setCameraActive(false);
+    setFaceDetected(false);
     
-    setIsSwitchingCamera(true);
-    setStatus({ message: 'Switching camera...', type: 'info' });
+    // Step 2: Wait for cleanup
+    await new Promise(resolve => setTimeout(resolve, 300));
     
+    // Step 3: Determine new mode
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    
+    // Step 4: Try with exact constraint first
     try {
-      // Stop current stream
-      stopCamera();
-      
-      // Wait a bit for cleanup
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Start camera with opposite facing mode
-      const newMode = facingMode === 'user' ? 'environment' : 'user';
-      await startCamera(newMode);
-      
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: { exact: newMode },  // ✅ Use exact constraint
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 } 
+        }
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        await new Promise((resolve) => {
+          videoRef.current.onloadedmetadata = () => { 
+            videoRef.current.play(); 
+            resolve(); 
+          };
+        });
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      setStream(mediaStream);
+      setFacingMode(newMode);  // ✅ Update state AFTER successful switch
+      setCameraActive(true);
       setStatus({ 
         message: `✅ Switched to ${newMode === 'user' ? 'Front' : 'Back'} camera`, 
         type: 'success' 
       });
-    } catch (error) {
-      console.error('Error switching camera:', error);
-      setStatus({ message: 'Failed to switch camera', type: 'error' });
       
-      // Try to restart with original mode
-      try {
-        await startCamera(facingMode);
-      } catch (restartError) {
-        console.error('Failed to restart camera:', restartError);
+    } catch (exactErr) {
+      // Fallback: Try without exact constraint
+      console.log('Exact constraint failed, trying without exact...');
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: newMode,  // ✅ Without exact
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 } 
+        }
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        await new Promise((resolve) => {
+          videoRef.current.onloadedmetadata = () => { 
+            videoRef.current.play(); 
+            resolve(); 
+          };
+        });
+        await new Promise(r => setTimeout(r, 500));
       }
-    } finally {
-      setIsSwitchingCamera(false);
+
+      setStream(mediaStream);
+      setFacingMode(newMode);
+      setCameraActive(true);
+      setStatus({ 
+        message: `⚠️ Switched camera (fallback mode)`, 
+        type: 'warning' 
+      });
     }
-  };
+    
+  } catch (error) {
+    console.error('Camera switch error:', error);
+    setStatus({ 
+      message: 'Failed to switch camera. Device may only have one camera.', 
+      type: 'error' 
+    });
+    
+    // Try to restart original camera
+    try {
+      await startCamera(facingMode);
+    } catch (restartError) {
+      console.error('Failed to restart camera:', restartError);
+    }
+  } finally {
+    setIsSwitchingCamera(false);
+  }
+};
 
   const captureFaceImage = async () => {
     if (!videoRef.current || !canvasRef.current) {
