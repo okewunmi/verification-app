@@ -1244,14 +1244,14 @@ const closeCameraModal = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by matric, name, or email..."
-                className="pl-10 pr-4 py-2 w-full border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 w-full border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
               />
             </div>
 
             <select
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
-              className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
             >
               <option value="">All Departments</option>
               {departments.map((dept) => (
@@ -1264,7 +1264,7 @@ const closeCameraModal = () => {
             <select
               value={filterLevel}
               onChange={(e) => setFilterLevel(e.target.value)}
-              className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
             >
               <option value="">All Levels</option>
               {levels.map((level) => (
@@ -1611,7 +1611,7 @@ const closeCameraModal = () => {
                       value={formData.surname}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     />
                   </div>
 
@@ -1625,7 +1625,7 @@ const closeCameraModal = () => {
                       value={formData.firstName}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     />
                   </div>
 
@@ -1639,7 +1639,7 @@ const closeCameraModal = () => {
                       value={formData.middleName}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     />
                   </div>
 
@@ -1655,7 +1655,7 @@ const closeCameraModal = () => {
                       required
                       min="15"
                       max="100"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     />
                   </div>
 
@@ -1670,7 +1670,7 @@ const closeCameraModal = () => {
                       onChange={handleInputChange}
                       required
                       placeholder="+234 xxx xxx xxxx"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     />
                   </div>
 
@@ -1684,7 +1684,7 @@ const closeCameraModal = () => {
                       value={formData.email}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     />
                   </div>
 
@@ -1697,7 +1697,7 @@ const closeCameraModal = () => {
                       value={formData.department}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     >
                       <option value="">Select Department</option>
                       {departments.map((dept) => (
@@ -1726,7 +1726,7 @@ const closeCameraModal = () => {
                       value={formData.course}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     >
                       <option value="">Select course</option>
                       {courses.map((dept) => (
@@ -1751,7 +1751,7 @@ const closeCameraModal = () => {
                       value={formData.level}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
                     >
                       <option value="">Select Level</option>
                       {levels.map((level) => (
