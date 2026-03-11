@@ -500,14 +500,17 @@ const { user, loading, isAuthenticated, checkAuth, logout } = useAuth();
                 <span className="text-sm font-medium text-gray-700">Verify Student</span>
               </button>
               <button 
-                onClick={() => handleQuickAction('/exam-sessions')}
+                onClick={() => handleQuickAction('/Admin/AttendanceReports')}
                 className="flex flex-col items-center justify-center p-4 rounded-xl bg-orange-50 hover:bg-orange-100 transition-colors"
               >
                 <svg className="w-8 h-8 text-orange-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                </svg>
-                <span className="text-sm font-medium text-gray-700">Exam Session</span>
+                  // <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                  // <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+               
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  
+                  </svg>
+                <span className="text-sm font-medium text-gray-700">Attendance Reports</span>
               </button>
             </div>
           </div>
